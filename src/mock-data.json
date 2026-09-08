@@ -1,0 +1,131 @@
+{
+  "_meta": {
+    "purpose": "Seed data. Load into Postgres for backend dev, or serve straight from a mock server (json-server / MSW) so the Flutter and React teams can build before any adapter exists.",
+    "generatedFor": "Swiftpass prototype",
+    "currency": "NPR",
+    "amountsIn": "paisa"
+  },
+
+  "places": [
+    { "id": "plc_ktm",      "kind": "airport",  "code": "KTM", "name": "Tribhuvan International", "nameNe": "त्रिभुवन विमानस्थल", "city": "Kathmandu", "country": "NP", "lat": 27.6966, "lon": 85.3591, "timezone": "Asia/Kathmandu" },
+    { "id": "plc_pkr",      "kind": "airport",  "code": "PKR", "name": "Pokhara Regional",       "nameNe": "पोखरा विमानस्थल",    "city": "Pokhara",   "country": "NP", "lat": 28.1983, "lon": 83.9822, "timezone": "Asia/Kathmandu" },
+    { "id": "plc_bwa",      "kind": "airport",  "code": "BWA", "name": "Gautam Buddha Intl",     "nameNe": "गौतम बुद्ध विमानस्थल","city": "Bhairahawa","country": "NP", "lat": 27.5056, "lon": 83.4160, "timezone": "Asia/Kathmandu" },
+    { "id": "plc_ktm_bus",  "kind": "bus_park", "code": null,  "name": "Gongabu Bus Park",       "nameNe": "गोंगबु बसपार्क",     "city": "Kathmandu", "country": "NP", "lat": 27.7352, "lon": 85.3122, "timezone": "Asia/Kathmandu" },
+    { "id": "plc_pkr_bus",  "kind": "bus_park", "code": null,  "name": "Prithvi Chowk Bus Park", "nameNe": "पृथ्वी चोक बसपार्क", "city": "Pokhara",   "country": "NP", "lat": 28.2065, "lon": 83.9856, "timezone": "Asia/Kathmandu" },
+    { "id": "plc_beni_bus", "kind": "bus_park", "code": null,  "name": "Beni Bazaar Stand",      "nameNe": "बेनी बजार",          "city": "Beni",      "country": "NP", "lat": 28.3500, "lon": 83.5667, "timezone": "Asia/Kathmandu" },
+    { "id": "plc_jnk_stn",  "kind": "station",  "code": "JNK", "name": "Janakpur Rail Station",  "nameNe": "जनकपुर स्टेसन",      "city": "Janakpur",  "country": "NP", "lat": 26.7288, "lon": 85.9266, "timezone": "Asia/Kathmandu" },
+    { "id": "plc_jyn_stn",  "kind": "station",  "code": "JYN", "name": "Jayanagar Station",      "nameNe": "जयनगर स्टेसन",       "city": "Jayanagar", "country": "IN", "lat": 26.5876, "lon": 86.1361, "timezone": "Asia/Kolkata" },
+    { "id": "plc_lakeside_amp", "kind": "venue","code": null,  "name": "Lakeside Amphitheatre",  "nameNe": "लेकसाइड",            "city": "Pokhara",   "country": "NP", "lat": 28.2096, "lon": 83.9556, "timezone": "Asia/Kathmandu" },
+    { "id": "plc_qfx_civil","kind": "venue",    "code": null,  "name": "QFX Civil Mall",         "nameNe": "क्यूएफएक्स",         "city": "Kathmandu", "country": "NP", "lat": 27.7016, "lon": 85.3122, "timezone": "Asia/Kathmandu" }
+  ],
+
+  "providers": [
+    { "id": "prv_yeti",          "legalName": "Yeti Airlines Pvt. Ltd.",  "displayName": "Yeti Airlines",  "modes": ["air"],   "adapterKey": "ndc_v21",       "isSelfServe": false },
+    { "id": "prv_buddha",        "legalName": "Buddha Air Pvt. Ltd.",     "displayName": "Buddha Air",     "modes": ["air"],   "adapterKey": "ndc_v21",       "isSelfServe": false },
+    { "id": "prv_gandaki",       "legalName": "Gandaki Deluxe Sewa",      "displayName": "Gandaki Deluxe", "modes": ["bus"],   "adapterKey": "native_console","isSelfServe": true },
+    { "id": "prv_nepal_railway", "legalName": "Nepal Railway Company",    "displayName": "Nepal Railway",  "modes": ["rail"],  "adapterKey": "csv_timetable", "isSelfServe": false },
+    { "id": "prv_lakeside_live", "legalName": "Lakeside Live Events",     "displayName": "Lakeside Live",  "modes": ["event"], "adapterKey": "native_console","isSelfServe": true },
+    { "id": "prv_qfx",           "legalName": "QFX Cinemas",              "displayName": "QFX Cinemas",    "modes": ["event"], "adapterKey": "native_console","isSelfServe": false }
+  ],
+
+  "services": [
+    { "id": "svc_yt681",  "providerId": "prv_yeti",          "mode": "air",   "code": "YT-681",       "title": "Kathmandu → Pokhara",        "originPlaceId": "plc_ktm",     "destPlaceId": "plc_pkr",      "venuePlaceId": null,               "attributes": { "aircraft": "ATR 72-500", "cabin": "economy", "baggageKg": 20 } },
+    { "id": "svc_u4602",  "providerId": "prv_buddha",        "mode": "air",   "code": "U4-602",       "title": "Kathmandu → Bhairahawa",     "originPlaceId": "plc_ktm",     "destPlaceId": "plc_bwa",      "venuePlaceId": null,               "attributes": { "aircraft": "ATR 72-500", "cabin": "economy", "baggageKg": 15 } },
+    { "id": "svc_gd_kp",  "providerId": "prv_gandaki",       "mode": "bus",   "code": "GD-KTM-PKR-07","title": "Kathmandu → Pokhara",        "originPlaceId": "plc_ktm_bus", "destPlaceId": "plc_pkr_bus",  "venuePlaceId": null,               "attributes": { "coachType": "deluxe", "hasAc": true, "amenities": ["wifi", "charging", "water"] } },
+    { "id": "svc_gd_pb",  "providerId": "prv_gandaki",       "mode": "bus",   "code": "GD-PKR-BEN-06","title": "Pokhara → Beni",             "originPlaceId": "plc_pkr_bus", "destPlaceId": "plc_beni_bus", "venuePlaceId": null,               "attributes": { "coachType": "deluxe", "hasAc": true, "amenities": ["charging"] } },
+    { "id": "svc_jnk_jyn","providerId": "prv_nepal_railway", "mode": "rail",  "code": "JNK-JYN-01",   "title": "Janakpur → Jayanagar",       "originPlaceId": "plc_jnk_stn", "destPlaceId": "plc_jyn_stn",  "venuePlaceId": null,               "attributes": { "coachClass": "second", "trainNumber": "NR-01" } },
+    { "id": "svc_sursudha","providerId": "prv_lakeside_live","mode": "event", "code": null,           "title": "Sur Sudha — Lakeside Evening","originPlaceId": null,         "destPlaceId": null,           "venuePlaceId": "plc_lakeside_amp", "attributes": { "category": "concert", "language": "ne" } },
+    { "id": "svc_qfx_film","providerId": "prv_qfx",          "mode": "event", "code": null,           "title": "Evening Screening — Hall 2", "originPlaceId": null,          "destPlaceId": null,           "venuePlaceId": "plc_qfx_civil",    "attributes": { "category": "cinema", "ageRating": "PG-13", "language": "ne" } }
+  ],
+
+  "occurrences": [
+    { "id": "occ_01K3M8YHQ2ZZ", "serviceId": "svc_yt681",   "mode": "air",   "departsAt": "2026-09-14T01:15:00Z", "arrivesAt": "2026-09-14T01:40:00Z", "gatesOpenAt": "2026-09-14T00:15:00Z", "status": "scheduled", "basePriceMinor": 545000, "capacity": 68,  "seatsSold": 57,  "providerRef": "YT681-20260914" },
+    { "id": "occ_01K3M8YHQ300", "serviceId": "svc_yt681",   "mode": "air",   "departsAt": "2026-09-14T04:00:00Z", "arrivesAt": "2026-09-14T04:25:00Z", "gatesOpenAt": "2026-09-14T03:00:00Z", "status": "scheduled", "basePriceMinor": 480000, "capacity": 68,  "seatsSold": 22,  "providerRef": "YT681-20260914-B" },
+    { "id": "occ_01K3M8YJ11CC", "serviceId": "svc_gd_kp",   "mode": "bus",   "departsAt": "2026-09-14T01:15:00Z", "arrivesAt": "2026-09-14T08:00:00Z", "gatesOpenAt": "2026-09-14T00:45:00Z", "status": "scheduled", "basePriceMinor": 160000, "capacity": 41,  "seatsSold": 18,  "providerRef": null },
+    { "id": "occ_01K3M8YJ44AA", "serviceId": "svc_gd_pb",   "mode": "bus",   "departsAt": "2026-09-15T01:00:00Z", "arrivesAt": "2026-09-15T04:30:00Z", "gatesOpenAt": "2026-09-15T00:30:00Z", "status": "scheduled", "basePriceMinor": 90000,  "capacity": 41,  "seatsSold": 18,  "providerRef": null },
+    { "id": "occ_01K3M8YJ88DD", "serviceId": "svc_jnk_jyn", "mode": "rail",  "departsAt": "2026-09-14T03:30:00Z", "arrivesAt": "2026-09-14T04:35:00Z", "gatesOpenAt": "2026-09-14T03:00:00Z", "status": "scheduled", "basePriceMinor": 12000,  "capacity": 320, "seatsSold": 140, "providerRef": null },
+    { "id": "occ_01K3M8YK77BB", "serviceId": "svc_sursudha","mode": "event", "departsAt": "2026-09-14T12:30:00Z", "arrivesAt": null,                   "gatesOpenAt": "2026-09-14T11:45:00Z", "status": "scheduled", "basePriceMinor": 120000, "capacity": 400, "seatsSold": 60,  "providerRef": null },
+    { "id": "occ_01K3M8YK99EE", "serviceId": "svc_qfx_film","mode": "event", "departsAt": "2026-09-14T12:00:00Z", "arrivesAt": null,                   "gatesOpenAt": "2026-09-14T11:40:00Z", "status": "scheduled", "basePriceMinor": 45000,  "capacity": 180, "seatsSold": 95,  "providerRef": null }
+  ],
+
+  "inventoryZones": [
+    { "id": "znz_yt_econ", "occurrenceId": "occ_01K3M8YHQ2ZZ", "code": "ECON",   "label": "Economy",            "priceMinor": 545000, "capacity": 68,  "isReservedSeating": true },
+    { "id": "znz_gd_del",  "occurrenceId": "occ_01K3M8YJ44AA", "code": "DELUXE", "label": "Deluxe A/C",         "priceMinor": 90000,  "capacity": 41,  "isReservedSeating": true },
+    { "id": "znz_nr_2nd",  "occurrenceId": "occ_01K3M8YJ88DD", "code": "SECOND", "label": "Second Class",       "priceMinor": 12000,  "capacity": 320, "isReservedSeating": false },
+    { "id": "znz_ll_ga",   "occurrenceId": "occ_01K3M8YK77BB", "code": "GA",     "label": "General Admission",  "priceMinor": 120000, "capacity": 360, "isReservedSeating": false },
+    { "id": "znz_ll_vip",  "occurrenceId": "occ_01K3M8YK77BB", "code": "VIP",    "label": "Front Terrace",      "priceMinor": 250000, "capacity": 40,  "isReservedSeating": true },
+    { "id": "znz_qfx_std", "occurrenceId": "occ_01K3M8YK99EE", "code": "STD",    "label": "Standard",           "priceMinor": 45000,  "capacity": 140, "isReservedSeating": true },
+    { "id": "znz_qfx_prm", "occurrenceId": "occ_01K3M8YK99EE", "code": "PREM",   "label": "Premium Recliner",   "priceMinor": 90000,  "capacity": 40,  "isReservedSeating": true }
+  ],
+
+  "seatMaps": [
+    {
+      "serviceId": "svc_yt681",
+      "layout": {
+        "rows": 17,
+        "columns": ["A", "B", "C", "D"],
+        "aisleAfter": ["B"],
+        "blocked": ["1D"],
+        "attributes": { "window": ["A", "D"], "legroom": ["1A", "1B", "1C"] }
+      }
+    },
+    {
+      "serviceId": "svc_gd_pb",
+      "layout": {
+        "rows": 11,
+        "columns": ["A", "B", "C", "D"],
+        "aisleAfter": ["B"],
+        "blocked": [],
+        "attributes": { "window": ["A", "D"], "backRow": ["11A", "11B", "11C", "11D"] }
+      }
+    }
+  ],
+
+  "users": [
+    { "id": "usr_01K3M5AA01", "phoneE164": "+9779841000000", "email": "sagar@example.np",  "fullName": "Sagar Shrestha",    "locale": "en-NP", "role": "traveller" },
+    { "id": "usr_01K3M5AA02", "phoneE164": "+9779841000001", "email": "monika@example.np", "fullName": "Monika Gyawali",    "locale": "ne-NP", "role": "traveller" },
+    { "id": "usr_01K3M5AA03", "phoneE164": "+9779841000002", "email": "om@example.np",     "fullName": "Om Prakash Panjiyar","locale": "en-NP","role": "operator_staff" },
+    { "id": "usr_01K3M5AA04", "phoneE164": "+9779841000003", "email": "oxford@example.np", "fullName": "Oxford Oli",        "locale": "en-NP", "role": "gate_agent" }
+  ],
+
+  "userPreferences": [
+    {
+      "userId": "usr_01K3M5AA01",
+      "budgetCeilingMinor": 1600000,
+      "preferredModes": ["air", "bus"],
+      "seatPreference": { "window": true, "frontHalf": false },
+      "accessibility": {},
+      "interests": ["live_music", "trekking"]
+    }
+  ],
+
+  "seatAllocations_sample": [
+    { "id": "alc_01K3M8Z001", "occurrenceId": "occ_01K3M8YHQ2ZZ", "zoneId": "znz_yt_econ", "seatLabel": "1A",  "state": "sold",     "bookingItemId": "bki_01K3M7AA01", "expiresAt": null },
+    { "id": "alc_01K3M8Z002", "occurrenceId": "occ_01K3M8YHQ2ZZ", "zoneId": "znz_yt_econ", "seatLabel": "12B", "state": "held",     "holdId": "hld_01K3M8ZZ55",        "expiresAt": "2026-08-19T10:38:00Z" },
+    { "id": "alc_01K3M8Z003", "occurrenceId": "occ_01K3M8YHQ2ZZ", "zoneId": "znz_yt_econ", "seatLabel": "9C",  "state": "released", "holdId": null,                     "expiresAt": null }
+  ],
+
+  "signingKeys": [
+    { "kid": "k_2026_08", "algorithm": "Ed25519", "publicKey": "MCowBQYDK2VwAyEAr4T2mQ8vNc1pLd5wXk9YsB3zFq7HjR0aTnUgEoPiVdM", "notBefore": "2026-08-01T00:00:00Z", "notAfter": "2026-10-01T00:00:00Z" },
+    { "kid": "k_2026_07", "algorithm": "Ed25519", "publicKey": "MCowBQYDK2VwAyEAqq81LbX4mZ2wKe7NcVdF9gHjP0sTyRu3AoIlEnBxWqY", "notBefore": "2026-07-01T00:00:00Z", "notAfter": "2026-09-01T00:00:00Z" }
+  ],
+
+  "scanDevices": [
+    { "id": "scn_01K3M6AA01", "providerId": "prv_yeti",          "label": "KTM Gate 2 — handheld",  "devicePubkey": "MCowBQYDK2VwAyEAd8Kf...", "lastSyncAt": "2026-09-13T23:00:00Z" },
+    { "id": "scn_01K3M6AA02", "providerId": "prv_yeti",          "label": "KTM Gate 3 — handheld",  "devicePubkey": "MCowBQYDK2VwAyEAe9Lg...", "lastSyncAt": "2026-09-13T23:01:00Z" },
+    { "id": "scn_01K3M6AA03", "providerId": "prv_lakeside_live", "label": "Amphitheatre door — Ram","devicePubkey": "MCowBQYDK2VwAyEAf0Mh...", "lastSyncAt": "2026-09-14T11:30:00Z" }
+  ],
+
+  "testScenarios": [
+    { "id": "TS-01", "name": "Concurrent seat grab",       "setup": "200 parallel POST /v1/holds for seat 12A on occ_01K3M8YHQ2ZZ", "expected": "exactly 1 × 201, 199 × 409 seat_unavailable, 1 row in seat_allocations" },
+    { "id": "TS-02", "name": "Abandoned hold expires",     "setup": "Create hold with ttlSeconds=60, do nothing",                    "expected": "after 60s the seat returns to available and state='released'" },
+    { "id": "TS-03", "name": "Duplicate checkout retry",   "setup": "POST /v1/bookings twice with the same Idempotency-Key",         "expected": "identical response body, exactly 1 booking row, 1 payment row" },
+    { "id": "TS-04", "name": "Screenshot replay",          "setup": "Capture QR, present 60s later from another phone",              "expected": "reject device_proof_invalid (or expired_window)" },
+    { "id": "TS-05", "name": "Forged signature",           "setup": "Alter seat field in credential body, re-encode",                "expected": "reject bad_signature" },
+    { "id": "TS-06", "name": "Offline double entry",       "setup": "Same ticket scanned on scn_...AA01 and scn_...AA02 while both offline", "expected": "both admit locally; sync flags is_duplicate and raises an incident" },
+    { "id": "TS-07", "name": "Agent tries to pay",         "setup": "Model emits a tool call named 'checkout'",                      "expected": "rejected — not in AGENT_TOOL_ALLOWLIST; logged; unauthorised-action counter stays 0" },
+    { "id": "TS-08", "name": "Price moved before confirm", "setup": "Provider raises fare between plan and confirm",                 "expected": "409 quote_expired, plan re-presented, nothing charged" },
+    { "id": "TS-09", "name": "Partial provider failure",   "setup": "Leg 2 adapter returns 500 after payment captured",              "expected": "booking.status='partially_failed', leg 2 auto-refunded, legs 1 and 3 ticketed" },
+    { "id": "TS-10", "name": "Scan latency under load",    "setup": "500-entry manifest, 60 scans/minute, airplane mode",            "expected": "p95 decision time < 2000 ms" }
+  ]
+}

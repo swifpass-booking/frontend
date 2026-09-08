@@ -1,0 +1,414 @@
+{
+  "_meta": {
+    "title": "Swiftpass API — worked examples",
+    "version": "1.0.0",
+    "baseUrl": "https://api.swiftpass.np/v1",
+    "notes": [
+      "Every amount is an integer in paisa. 850000 = NPR 8,500.00",
+      "Every mutating POST requires an Idempotency-Key header (UUIDv4).",
+      "Auth: Authorization: Bearer <access_token>. Scanner apps use a device-scoped token.",
+      "The scenario below is one continuous journey: KTM->PKR flight, PKR->Beni bus, and a concert in Pokhara — booked in ONE checkout."
+    ]
+  },
+
+  "1_search": {
+    "endpoint": "POST /v1/search",
+    "request": {
+      "legs": [
+        { "from": "KTM", "to": "PKR", "date": "2026-09-14", "timeWindow": { "earliest": "06:00", "latest": "12:00" } },
+        { "from": "PKR", "to": "Beni", "date": "2026-09-15" }
+      ],
+      "passengers": { "adults": 2, "children": 0, "infants": 0 },
+      "modes": ["air", "bus", "event"],
+      "maxPrice": 1200000,
+      "currency": "NPR",
+      "sort": "recommended"
+    },
+    "response": {
+      "requestId": "req_01K3M9QZ7X4A",
+      "offers": [
+        {
+          "offerId": "ofr_01K3M9R2AB1C",
+          "occurrenceId": "occ_01K3M8YHQ2ZZ",
+          "mode": "air",
+          "provider": { "id": "prv_yeti", "displayName": "Yeti Airlines", "isSelfServe": false },
+          "title": "Kathmandu → Pokhara",
+          "origin": { "id": "plc_ktm", "kind": "airport", "code": "KTM", "name": "Tribhuvan International", "nameNe": "त्रिभुवन विमानस्थल", "city": "Kathmandu", "country": "NP", "timezone": "Asia/Kathmandu" },
+          "destination": { "id": "plc_pkr", "kind": "airport", "code": "PKR", "name": "Pokhara Regional", "nameNe": "पोखरा विमानस्थल", "city": "Pokhara", "country": "NP", "timezone": "Asia/Kathmandu" },
+          "venue": null,
+          "departsAt": "2026-09-14T01:15:00Z",
+          "arrivesAt": "2026-09-14T01:40:00Z",
+          "durationMinutes": 25,
+          "price": { "amount": 545000, "currency": "NPR" },
+          "fees": { "amount": 27250, "currency": "NPR" },
+          "seatsAvailable": 11,
+          "hasReservedSeating": true,
+          "zones": [
+            { "id": "znz_yt_econ", "code": "ECON", "label": "Economy", "price": { "amount": 545000, "currency": "NPR" }, "seatsAvailable": 11, "isReservedSeating": true }
+          ],
+          "rankingReason": ["fastest_for_leg", "matches_time_window"],
+          "details": { "flightNumber": "YT-681", "aircraft": "ATR 72-500", "cabin": "economy", "baggageKg": 20, "stops": 0 },
+          "quoteExpiresAt": "2026-08-19T10:45:00Z"
+        },
+        {
+          "offerId": "ofr_01K3M9R2DE2F",
+          "occurrenceId": "occ_01K3M8YJ44AA",
+          "mode": "bus",
+          "provider": { "id": "prv_gandaki", "displayName": "Gandaki Deluxe", "isSelfServe": true },
+          "title": "Pokhara → Beni",
+          "origin": { "id": "plc_pkr_bus", "kind": "bus_park", "code": null, "name": "Prithvi Chowk Bus Park", "nameNe": "पृथ्वी चोक बसपार्क", "city": "Pokhara", "country": "NP", "timezone": "Asia/Kathmandu" },
+          "destination": { "id": "plc_beni_bus", "kind": "bus_park", "code": null, "name": "Beni Bazaar Stand", "nameNe": "बेनी बजार", "city": "Beni", "country": "NP", "timezone": "Asia/Kathmandu" },
+          "venue": null,
+          "departsAt": "2026-09-15T01:00:00Z",
+          "arrivesAt": "2026-09-15T04:30:00Z",
+          "durationMinutes": 210,
+          "price": { "amount": 90000, "currency": "NPR" },
+          "fees": { "amount": 4500, "currency": "NPR" },
+          "seatsAvailable": 23,
+          "hasReservedSeating": true,
+          "zones": [
+            { "id": "znz_gd_del", "code": "DELUXE", "label": "Deluxe A/C", "price": { "amount": 90000, "currency": "NPR" }, "seatsAvailable": 23, "isReservedSeating": true }
+          ],
+          "rankingReason": ["cheapest_for_leg"],
+          "details": { "coachType": "deluxe", "boardingPoint": "Prithvi Chowk Gate 3", "droppingPoint": "Beni Bazaar", "amenities": ["wifi", "charging", "water"], "hasAc": true },
+          "quoteExpiresAt": "2026-08-19T10:45:00Z"
+        },
+        {
+          "offerId": "ofr_01K3M9R2GH3J",
+          "occurrenceId": "occ_01K3M8YK77BB",
+          "mode": "event",
+          "provider": { "id": "prv_lakeside_live", "displayName": "Lakeside Live", "isSelfServe": true },
+          "title": "Sur Sudha — Lakeside Evening",
+          "origin": null,
+          "destination": null,
+          "venue": { "id": "plc_lakeside_amp", "kind": "venue", "code": null, "name": "Lakeside Amphitheatre", "nameNe": "लेकसाइड", "city": "Pokhara", "country": "NP", "timezone": "Asia/Kathmandu" },
+          "departsAt": "2026-09-14T12:30:00Z",
+          "arrivesAt": null,
+          "durationMinutes": null,
+          "price": { "amount": 120000, "currency": "NPR" },
+          "fees": { "amount": 6000, "currency": "NPR" },
+          "seatsAvailable": 340,
+          "hasReservedSeating": false,
+          "zones": [
+            { "id": "znz_ll_ga", "code": "GA", "label": "General Admission", "price": { "amount": 120000, "currency": "NPR" }, "seatsAvailable": 300, "isReservedSeating": false },
+            { "id": "znz_ll_vip", "code": "VIP", "label": "Front Terrace", "price": { "amount": 250000, "currency": "NPR" }, "seatsAvailable": 40, "isReservedSeating": true }
+          ],
+          "rankingReason": ["in_destination_city", "matches_stated_interest_music"],
+          "details": { "category": "concert", "ageRating": null, "language": "ne", "doorsOpenAt": "2026-09-14T11:45:00Z" },
+          "quoteExpiresAt": "2026-08-19T10:45:00Z"
+        }
+      ],
+      "bundles": [
+        {
+          "bundleId": "bnd_01K3M9R3KL",
+          "offerIds": ["ofr_01K3M9R2AB1C", "ofr_01K3M9R2DE2F"],
+          "total": { "amount": 1266750, "currency": "NPR" },
+          "totalDurationMinutes": 235,
+          "connectionRiskMinutes": [1400]
+        }
+      ],
+      "nextCursor": "eyJvIjoyMH0",
+      "partialFailures": [
+        { "providerId": "prv_nepal_railway", "reason": "adapter_timeout_2000ms" }
+      ]
+    }
+  },
+
+  "2_seatmap": {
+    "endpoint": "GET /v1/occurrences/occ_01K3M8YHQ2ZZ/seatmap",
+    "response": {
+      "occurrenceId": "occ_01K3M8YHQ2ZZ",
+      "isReservedSeating": true,
+      "layout": { "rows": 18, "columns": ["A", "B", "C", "D"], "aisleAfter": ["B"] },
+      "seats": [
+        { "label": "1A", "zoneId": "znz_yt_econ", "state": "sold",      "price": { "amount": 545000, "currency": "NPR" }, "attributes": ["window", "legroom"] },
+        { "label": "1B", "zoneId": "znz_yt_econ", "state": "available", "price": { "amount": 545000, "currency": "NPR" }, "attributes": ["legroom"] },
+        { "label": "12A","zoneId": "znz_yt_econ", "state": "available", "price": { "amount": 545000, "currency": "NPR" }, "attributes": ["window"] },
+        { "label": "12B","zoneId": "znz_yt_econ", "state": "held",      "price": { "amount": 545000, "currency": "NPR" }, "attributes": [] }
+      ],
+      "snapshotAt": "2026-08-19T10:30:12Z"
+    }
+  },
+
+  "3_hold": {
+    "endpoint": "POST /v1/holds",
+    "headers": { "Idempotency-Key": "9c1f0f4a-6a1d-4f6e-9a3a-2f8b1d2e5c11" },
+    "request": {
+      "occurrenceId": "occ_01K3M8YHQ2ZZ",
+      "zoneId": "znz_yt_econ",
+      "seatLabels": ["12A", "12C"],
+      "ttlSeconds": 600
+    },
+    "response_201": {
+      "holdId": "hld_01K3M9S5MN",
+      "occurrenceId": "occ_01K3M8YHQ2ZZ",
+      "seatLabels": ["12A", "12C"],
+      "expiresAt": "2026-08-19T10:40:12Z",
+      "expiresInSeconds": 600
+    },
+    "response_409_race_lost": {
+      "error": {
+        "code": "seat_unavailable",
+        "message": "Seat 12A was taken while you were choosing.",
+        "messageNe": "सिट 12A अर्को यात्रुले लिइसक्नुभयो।",
+        "details": { "unavailableSeats": ["12A"], "suggestedAlternatives": ["12D", "13A"] },
+        "requestId": "req_01K3M9S6PQ",
+        "retryable": true
+      }
+    }
+  },
+
+  "4_cart": {
+    "endpoint": "POST /v1/carts/crt_01K3M9T1RS/items",
+    "request": {
+      "offerId": "ofr_01K3M9R2AB1C",
+      "holdId": "hld_01K3M9S5MN",
+      "legIndex": 0,
+      "seatLabels": ["12A", "12C"],
+      "qty": 2
+    },
+    "response": {
+      "cartId": "crt_01K3M9T1RS",
+      "items": [
+        { "cartItemId": "cri_01K3M9T2AA", "legIndex": 0, "holdId": "hld_01K3M9S5MN", "seatLabels": ["12A", "12C"], "qty": 2, "lineTotal": { "amount": 1090000, "currency": "NPR" } },
+        { "cartItemId": "cri_01K3M9T2BB", "legIndex": 1, "holdId": "hld_01K3M9S7TU", "seatLabels": ["A3", "A4"], "qty": 2, "lineTotal": { "amount": 180000, "currency": "NPR" } },
+        { "cartItemId": "cri_01K3M9T2CC", "legIndex": 2, "holdId": "hld_01K3M9S8VW", "seatLabels": [], "qty": 2, "lineTotal": { "amount": 240000, "currency": "NPR" } }
+      ],
+      "subtotal": { "amount": 1510000, "currency": "NPR" },
+      "fees": { "amount": 75500, "currency": "NPR" },
+      "total": { "amount": 1585500, "currency": "NPR" },
+      "expiresAt": "2026-08-19T10:40:12Z"
+    }
+  },
+
+  "5_checkout": {
+    "endpoint": "POST /v1/bookings",
+    "headers": { "Idempotency-Key": "5f4a2b90-11cc-4e2a-8d3f-77aa10bb9911" },
+    "request": {
+      "cartId": "crt_01K3M9T1RS",
+      "passengers": [
+        { "fullName": "Sagar Shrestha", "dateOfBirth": "2003-04-11", "documentType": "citizenship", "documentNumber": "27-01-70-01234", "isLead": true },
+        { "fullName": "Monika Gyawali", "dateOfBirth": "2003-11-02", "documentType": "citizenship", "documentNumber": "27-01-70-05678", "isLead": false }
+      ],
+      "contact": { "phoneE164": "+9779841000000", "email": "sagar@example.np" },
+      "payment": { "method": "esewa", "returnUrl": "swiftpass://checkout/return" },
+      "acceptedTermsVersion": "2026-06-01"
+    },
+    "response_201": {
+      "bookingId": "bkg_01K3M9U9XY",
+      "reference": "SWP-8K2QJ4",
+      "status": "awaiting_payment",
+      "total": { "amount": 1585500, "currency": "NPR" },
+      "items": [
+        { "bookingItemId": "bki_01K3M9UA01", "legIndex": 0, "occurrenceId": "occ_01K3M8YHQ2ZZ", "status": "held", "providerRef": null, "subtotal": { "amount": 1090000, "currency": "NPR" }, "failureReason": null },
+        { "bookingItemId": "bki_01K3M9UA02", "legIndex": 1, "occurrenceId": "occ_01K3M8YJ44AA", "status": "held", "providerRef": null, "subtotal": { "amount": 180000, "currency": "NPR" }, "failureReason": null },
+        { "bookingItemId": "bki_01K3M9UA03", "legIndex": 2, "occurrenceId": "occ_01K3M8YK77BB", "status": "held", "providerRef": null, "subtotal": { "amount": 240000, "currency": "NPR" }, "failureReason": null }
+      ],
+      "payment": {
+        "paymentId": "pay_01K3M9UB55",
+        "psp": "esewa",
+        "status": "initiated",
+        "redirectUrl": "https://rc-epay.esewa.com.np/api/epay/main/v2/form?...",
+        "expiresAt": "2026-08-19T10:40:12Z"
+      }
+    }
+  },
+
+  "6_payment_webhook": {
+    "endpoint": "POST /v1/webhooks/psp/esewa",
+    "note": "Signature verified with the PSP's shared secret before any state change. Handler must be idempotent — PSPs retry.",
+    "request": {
+      "event": "payment.captured",
+      "pspRef": "ESW-2026-0819-77341",
+      "paymentId": "pay_01K3M9UB55",
+      "amountMinor": 1585500,
+      "currency": "NPR",
+      "signature": "sha256=6f2c...",
+      "occurredAt": "2026-08-19T10:33:02Z"
+    },
+    "effect": [
+      "payments.status -> 'captured'",
+      "for each booking_item: call provider adapter to confirm; on success set status='confirmed', store providerRef",
+      "seat_allocations.state 'held' -> 'sold'",
+      "issue one ticket per passenger per confirmed booking_item",
+      "if any item fails: booking.status='partially_failed', auto-refund that item's subtotal, notify user"
+    ]
+  },
+
+  "7_booking_confirmed": {
+    "endpoint": "GET /v1/bookings/bkg_01K3M9U9XY",
+    "response": {
+      "bookingId": "bkg_01K3M9U9XY",
+      "reference": "SWP-8K2QJ4",
+      "status": "confirmed",
+      "total": { "amount": 1585500, "currency": "NPR" },
+      "createdVia": "app",
+      "confirmedAt": "2026-08-19T10:33:05Z",
+      "items": [
+        { "bookingItemId": "bki_01K3M9UA01", "legIndex": 0, "occurrenceId": "occ_01K3M8YHQ2ZZ", "status": "confirmed", "providerRef": "YT-PNR-4F8K2", "subtotal": { "amount": 1090000, "currency": "NPR" }, "failureReason": null }
+      ],
+      "tickets": [
+        { "ticketId": "tkt_01K3M9V101", "bookingItemId": "bki_01K3M9UA01", "passengerName": "Sagar Shrestha", "seatLabel": "12A", "status": "issued", "validFrom": "2026-09-13T01:15:00Z", "validUntil": "2026-09-14T01:15:00Z", "fallbackCode": "418 220 673" },
+        { "ticketId": "tkt_01K3M9V102", "bookingItemId": "bki_01K3M9UA01", "passengerName": "Monika Gyawali", "seatLabel": "12C", "status": "issued", "validFrom": "2026-09-13T01:15:00Z", "validUntil": "2026-09-14T01:15:00Z", "fallbackCode": "418 220 674" }
+      ]
+    }
+  },
+
+  "8_ticket_credential": {
+    "endpoint": "GET /v1/tickets/tkt_01K3M9V101/credential?deviceId=dev_01K3M7ZZ01",
+    "note": "rotationSecret is returned ONCE. The app writes it to Keychain/Keystore and never sends it back.",
+    "response": {
+      "ticketId": "tkt_01K3M9V101",
+      "credential": "SWP1.eyJhbGciOiJFZDI1NTE5Iiwia2lkIjoiaV8yMDI2XzA4In0.eyJ2IjoxLCJ0aWQiOiJ0a3RfMDFLM005VjEwMSJ9.MEUCIQDx3k...",
+      "kid": "k_2026_08",
+      "rotationIntervalSeconds": 30,
+      "rotationSecret": "sN7pQ2vX9kLm3bT8wR1yF4hJ6dG0aZcE"
+    },
+    "decoded_credential_body": {
+      "v": 1,
+      "tid": "tkt_01K3M9V101",
+      "bid": "bkg_01K3M9U9XY",
+      "occ": "occ_01K3M8YHQ2ZZ",
+      "zone": "ECON",
+      "seat": "12A",
+      "pax": "SHRESTHA/SAGAR",
+      "dpk": "MCowBQYDK2VwAyEA9k2f...",
+      "nbf": 1789700100,
+      "exp": 1789786500,
+      "kid": "k_2026_08"
+    },
+    "qr_payload_actually_displayed": {
+      "format": "<credential>|<rotationProof>",
+      "rotationProof": {
+        "ctr": 41,
+        "ts": 1789786412,
+        "sig": "base64url(Ed25519_sign(devicePrivateKey, tid || ctr || ts))"
+      },
+      "explanation": "The long-lived part proves the server sold this ticket. The short-lived part proves this phone is holding it right now. A screenshot carries the first but not the second, so it fails after one 30s window."
+    }
+  },
+
+  "9_scan_manifest": {
+    "endpoint": "POST /v1/scan/sessions",
+    "note": "Called once while the gate still has data. After this the scanner needs no network.",
+    "request": { "occurrenceId": "occ_01K3M8YHQ2ZZ", "scanDeviceId": "scn_01K3M6AA01" },
+    "response": {
+      "scanSessionId": "ssn_01K3M9W201",
+      "occurrenceId": "occ_01K3M8YHQ2ZZ",
+      "issuedAt": "2026-09-13T23:00:00Z",
+      "expiresAt": "2026-09-14T03:00:00Z",
+      "signingKeys": [
+        { "kid": "k_2026_08", "publicKey": "MCowBQYDK2VwAyEAr4T2...", "notAfter": "2026-10-01T00:00:00Z" },
+        { "kid": "k_2026_07", "publicKey": "MCowBQYDK2VwAyEAqq81...", "notAfter": "2026-09-01T00:00:00Z" }
+      ],
+      "entries": [
+        { "tid": "tkt_01K3M9V101", "dpk": "MCowBQYDK2VwAyEA9k2f...", "seat": "12A", "zone": "ECON", "name": "Sagar Shrestha", "st": "issued" },
+        { "tid": "tkt_01K3M9V102", "dpk": "MCowBQYDK2VwAyEA7h3b...", "seat": "12C", "zone": "ECON", "name": "Monika Gyawali", "st": "issued" }
+      ],
+      "revoked": ["tkt_01K3M9V099"],
+      "manifestHash": "sha256:1c9a...",
+      "manifestSignature": "MEQCIF..."
+    }
+  },
+
+  "10_scan_offline_then_sync": {
+    "offline_decision_on_device": {
+      "input": "scanned QR string",
+      "checks_in_order": [
+        "parse SWP1 envelope",
+        "look up kid in cached signingKeys -> else reject 'unknown_key'",
+        "verify server Ed25519 signature -> else reject 'bad_signature'",
+        "check nbf <= now <= exp -> else reject 'expired_window' / 'not_yet_valid'",
+        "check occ matches this session's occurrenceId -> else reject 'wrong_occurrence'",
+        "verify rotationProof.sig against dpk, |now - ts| <= 60s -> else reject 'device_proof_invalid'",
+        "check tid not in local redeemed-set and not in manifest.revoked -> else reject 'already_redeemed' / 'revoked'",
+        "append to local redeemed-set, return accepted"
+      ],
+      "target": "under 2000 ms per scan, no network"
+    },
+    "endpoint": "POST /v1/scan/redemptions:sync",
+    "request": {
+      "scanSessionId": "ssn_01K3M9W201",
+      "redemptions": [
+        { "ticketId": "tkt_01K3M9V101", "accepted": true,  "rejectReason": null,              "rotationCounter": 41, "scannedAt": "2026-09-14T00:52:11Z", "deviceSignature": "MEUCIQC..." },
+        { "ticketId": "tkt_01K3M9V102", "accepted": true,  "rejectReason": null,              "rotationCounter": 12, "scannedAt": "2026-09-14T00:52:40Z", "deviceSignature": "MEQCIGx..." },
+        { "ticketId": "tkt_01K3M9V101", "accepted": false, "rejectReason": "already_redeemed","rotationCounter": 44, "scannedAt": "2026-09-14T00:58:03Z", "deviceSignature": "MEYCIQD..." }
+      ]
+    },
+    "response": {
+      "accepted": 2,
+      "duplicates": [
+        { "ticketId": "tkt_01K3M9V101", "conflictingDeviceIds": ["scn_01K3M6AA01", "scn_01K3M6AA02"] }
+      ],
+      "rejected": []
+    },
+    "duplicate_policy": "Earliest scannedAt wins and stays admitted. Later ones are flagged is_duplicate=true and raised as an incident on the operator console — the person was already through the gate, so the record is for investigation, not enforcement."
+  },
+
+  "11_agent_session": {
+    "endpoint": "POST /v1/agent/sessions",
+    "request": {
+      "goal": "Get me and Monika to Pokhara Friday morning, something to do that evening, and on to Beni Saturday. Keep it under 16,000.",
+      "spendCeiling": { "amount": 1600000, "currency": "NPR" },
+      "useStoredPreferences": true
+    },
+    "response_stream": [
+      { "seq": 1, "type": "thought",     "content": "Three sub-goals: KTM->PKR Fri AM, Pokhara evening activity, PKR->Beni Sat. Ceiling 16,000 for 2 people.", "at": "2026-08-19T10:20:01Z" },
+      { "seq": 2, "type": "tool_call",   "content": { "tool": "get_user_preferences", "arguments": {} }, "at": "2026-08-19T10:20:01Z" },
+      { "seq": 3, "type": "tool_result", "content": { "preferredModes": ["air", "bus"], "seatPreference": { "window": true }, "interests": ["live_music"] }, "at": "2026-08-19T10:20:02Z" },
+      { "seq": 4, "type": "tool_call",   "content": { "tool": "search_offers", "arguments": { "legs": [{ "from": "KTM", "to": "PKR", "date": "2026-09-14" }], "passengers": { "adults": 2 } } }, "at": "2026-08-19T10:20:02Z" },
+      { "seq": 5, "type": "tool_result", "content": { "offerCount": 7, "cheapest": 480000, "fastest": "ofr_01K3M9R2AB1C" }, "at": "2026-08-19T10:20:04Z" },
+      { "seq": 6, "type": "tool_call",   "content": { "tool": "create_hold", "arguments": { "occurrenceId": "occ_01K3M8YHQ2ZZ", "zoneId": "znz_yt_econ", "seatLabels": ["12A", "12C"] } }, "at": "2026-08-19T10:20:06Z" },
+      { "seq": 7, "type": "plan",        "content": { "planId": "apn_01K3M9X301" }, "at": "2026-08-19T10:20:11Z" }
+    ],
+    "plan_presented_to_user": {
+      "planId": "apn_01K3M9X301",
+      "sessionId": "ags_01K3M9X100",
+      "legs": [
+        { "legIndex": 0, "offerId": "ofr_01K3M9R2AB1C", "summary": "YT-681 Kathmandu → Pokhara, Fri 14 Sep 07:00, seats 12A/12C", "seatLabels": ["12A", "12C"], "price": { "amount": 1090000, "currency": "NPR" } },
+        { "legIndex": 1, "offerId": "ofr_01K3M9R2GH3J", "summary": "Sur Sudha, Lakeside Amphitheatre, Fri 18:15, general admission ×2", "seatLabels": [], "price": { "amount": 240000, "currency": "NPR" } },
+        { "legIndex": 2, "offerId": "ofr_01K3M9R2DE2F", "summary": "Gandaki Deluxe Pokhara → Beni, Sat 06:45, seats A3/A4", "seatLabels": ["A3", "A4"], "price": { "amount": 180000, "currency": "NPR" } }
+      ],
+      "total": { "amount": 1585500, "currency": "NPR" },
+      "withinCeiling": true,
+      "assumptions": [
+        "Friday read as 14 September 2026",
+        "window seats chosen from your saved preference",
+        "no return leg from Beni was requested"
+      ],
+      "requiresConfirmation": true,
+      "expiresAt": "2026-08-19T10:30:11Z"
+    },
+    "confirm": {
+      "endpoint": "POST /v1/agent/plans/apn_01K3M9X301/confirm",
+      "request": { "planId": "apn_01K3M9X301", "confirmed": true, "acknowledgedTotal": 1585500 },
+      "note": "acknowledgedTotal must equal the presented total. If the price moved, the server returns 409 quote_expired and re-presents — the user never pays a number they did not see."
+    },
+    "refusal_example": {
+      "request": { "planId": "apn_01K3M9X301", "confirmed": true, "acknowledgedTotal": 1585500 },
+      "response_409": {
+        "error": {
+          "code": "spend_ceiling_exceeded",
+          "message": "The plan now totals NPR 16,300, above your NPR 16,000 limit for this session.",
+          "details": { "ceilingMinor": 1600000, "planTotalMinor": 1630000 },
+          "requestId": "req_01K3M9Y400",
+          "retryable": false
+        }
+      }
+    }
+  },
+
+  "12_error_shape": {
+    "note": "Every non-2xx uses this envelope. Frontends switch on error.code, never on the message string.",
+    "example": {
+      "error": {
+        "code": "hold_expired",
+        "message": "Your seats were released because checkout was not completed in time.",
+        "messageNe": "समयमै भुक्तानी नभएकाले सिटहरू छाडिएका छन्।",
+        "details": { "holdId": "hld_01K3M9S5MN", "expiredAt": "2026-08-19T10:40:12Z" },
+        "requestId": "req_01K3M9Z500",
+        "retryable": true
+      }
+    }
+  }
+}
