@@ -1,11 +1,17 @@
 import { useState } from 'react';
-import { TicketIcon } from './icons.jsx';
+import { TicketIcon, MenuIcon, CloseIcon } from './icons.jsx';
 import { useAuth } from './AuthContext.jsx';
 
 export default function Nav({ page, cartCount, onNavigate, onSignIn }) {
   const isBooking = ['home', 'results', 'checkout', 'confirmation'].includes(page);
   const { user, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+  function handleMobileNavigate(p) {
+    setMobileNavOpen(false);
+    onNavigate(p);
+  }
 
   const initials = user?.fullName
     ?.split(' ')
@@ -103,8 +109,58 @@ export default function Nav({ page, cartCount, onNavigate, onSignIn }) {
               Sign in
             </button>
           )}
+
+          <button
+            onClick={() => setMobileNavOpen((v) => !v)}
+            className="grid h-9 w-9 place-items-center rounded-lg hover:bg-white/10 md:hidden"
+            aria-label="Menu"
+          >
+            {mobileNavOpen ? <CloseIcon className="h-5 w-5" width={20} height={20} /> : <MenuIcon className="h-5 w-5" width={20} height={20} />}
+          </button>
         </div>
       </div>
+
+      {mobileNavOpen && (
+        <>
+          <div className="fixed inset-0 z-40 md:hidden" onClick={() => setMobileNavOpen(false)} />
+          <nav className="relative z-50 flex flex-col gap-1 border-t border-white/10 px-4 py-3 text-sm font-medium text-navy-100/80 md:hidden">
+            <button
+              onClick={() => handleMobileNavigate('home')}
+              className={`rounded-lg px-3 py-2 text-left transition hover:bg-white/10 hover:text-white ${isBooking ? 'text-white' : ''}`}
+            >
+              Book a trip
+            </button>
+            <button
+              onClick={() => handleMobileNavigate('ops')}
+              className={`rounded-lg px-3 py-2 text-left transition hover:bg-white/10 hover:text-white ${page === 'ops' ? 'text-white' : ''}`}
+            >
+              Operator console
+            </button>
+            {user?.role === 'admin' && (
+              <button
+                onClick={() => handleMobileNavigate('admin')}
+                className={`rounded-lg px-3 py-2 text-left transition hover:bg-white/10 hover:text-white ${page === 'admin' ? 'text-white' : ''}`}
+              >
+                Admin
+              </button>
+            )}
+            <button
+              onClick={() => handleMobileNavigate('checkout')}
+              className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-left transition hover:bg-white/10 hover:text-white"
+            >
+              Cart
+              {cartCount > 0 && (
+                <span className="grid h-5 w-5 place-items-center rounded-full bg-brand-amber text-[11px] font-bold text-navy-950">
+                  {cartCount}
+                </span>
+              )}
+            </button>
+            <a href="#" className="rounded-lg px-3 py-2 text-left transition hover:bg-white/10 hover:text-white">
+              Help
+            </a>
+          </nav>
+        </>
+      )}
     </header>
   );
 }

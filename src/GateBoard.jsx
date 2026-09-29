@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import jsQR from 'jsqr';
-import { adminOccurrences, scanRedeem, scanStats } from './api.js';
+import { adminOccurrences, scanHistory, scanRedeem, scanStats } from './api.js';
 import { ModeIcon } from './icons.jsx';
 
 /**
@@ -70,6 +70,7 @@ function ScanRow({ e }) {
         </div>
         <div className="text-[11px] truncate" style={{ color: C.dim }}>
           {e.accepted ? e.tripTitle : e.message}
+          {e.scannedBy ? ` · ${e.scannedBy}` : ''}
         </div>
       </div>
       <div className="text-right">
@@ -109,17 +110,12 @@ export default function GateBoard({ user, token, onBack, onSignIn }) {
   useEffect(() => {
     if (!isAdmin) return;
     adminOccurrences(token)
-      .then((res) => {
-        setOccurrences(res.occurrences);
-        const scheduled = res.occurrences.find((o) => o.status === 'scheduled');
-        if (scheduled) setOccurrenceId(scheduled.id);
-      })
+      .then((res) => setOccurrences(res.occurrences))
       .catch((err) => setError(err.message));
   }, [isAdmin, token]);
 
   const refreshStats = useCallback(
     (occId) => {
-      if (!occId) return;
       scanStats(occId, token)
         .then(setCounts)
         .catch((err) => setError(err.message));
@@ -127,19 +123,38 @@ export default function GateBoard({ user, token, onBack, onSignIn }) {
     [token]
   );
 
+  const refreshFeed = useCallback(
+    (occId) => {
+      scanHistory(occId, token)
+        .then((res) => setFeed(res.scans))
+        .catch((err) => setError(err.message));
+    },
+    [token]
+  );
+
+  // Scan history and counts are stored server-side (not just in this tab's
+  // memory), so every admin — on this laptop, another laptop, or a phone at
+  // a different gate — sees the same feed. Poll so it stays live across
+  // devices without needing websockets.
   useEffect(() => {
     refreshStats(occurrenceId);
-  }, [occurrenceId, refreshStats]);
+    refreshFeed(occurrenceId);
+    const id = setInterval(() => {
+      refreshStats(occurrenceId);
+      refreshFeed(occurrenceId);
+    }, 4000);
+    return () => clearInterval(id);
+  }, [occurrenceId, refreshStats, refreshFeed]);
 
   const handleCode = useCallback(
     async (code) => {
-      if (busyRef.current || !code || !occurrenceId) return;
+      if (busyRef.current || !code) return;
       busyRef.current = true;
       try {
         const result = await scanRedeem(code, occurrenceId, gate, token);
         setVerdict(result);
-        setFeed((f) => [{ ...result, gate }, ...f].slice(0, 40));
         refreshStats(occurrenceId);
+        refreshFeed(occurrenceId);
       } catch (err) {
         setError(err.message);
       } finally {
@@ -151,7 +166,7 @@ export default function GateBoard({ user, token, onBack, onSignIn }) {
         }, 1800);
       }
     },
-    [occurrenceId, gate, token, refreshStats]
+    [occurrenceId, gate, token, refreshStats, refreshFeed]
   );
 
   const tick = useCallback(() => {
@@ -245,6 +260,7 @@ export default function GateBoard({ user, token, onBack, onSignIn }) {
               className="rounded-lg px-3 py-2 text-sm font-semibold"
               style={{ background: C.panel, color: C.paper, border: `1px solid ${C.edge}` }}
             >
+              <option value="">All events (accept any valid ticket)</option>
               {occurrences.map((o) => (
                 <option key={o.id} value={o.id}>
                   {o.title} · {new Date(o.departsAt).toLocaleString()}
@@ -339,6 +355,9 @@ export default function GateBoard({ user, token, onBack, onSignIn }) {
           </div>
 
           <div>
+            <p className="mb-2 text-[11px] uppercase tracking-wide" style={{ color: C.dim }}>
+              {occurrenceId ? 'Totals for this event' : 'Totals across all events'}
+            </p>
             <div className="mb-4 flex justify-between rounded-2xl p-4" style={{ background: C.panel, border: `1px solid ${C.edge}` }}>
               <Stat label="Issued" value={counts.issued} />
               <Stat label="Admitted" value={counts.redeemed} tone={C.jade} />
@@ -347,7 +366,7 @@ export default function GateBoard({ user, token, onBack, onSignIn }) {
 
             <div className="rounded-2xl" style={{ background: C.panel, border: `1px solid ${C.edge}` }}>
               <div className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide" style={{ color: C.dim, borderBottom: `1px solid ${C.edge}` }}>
-                Recent scans
+                Scan history · all admins
               </div>
               <div className="max-h-96 overflow-y-auto">
                 {feed.length === 0 ? (

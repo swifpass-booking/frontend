@@ -24,7 +24,10 @@ export const adminOccurrences = (token) => request('/admin/occurrences', { token
 export const adminBookings = (token) => request('/admin/bookings', { token });
 
 export const scanRedeem = (code, occurrenceId, gate, token) =>
-  request('/scan/redeem', { method: 'POST', body: { code, occurrenceId, gate }, token });
+  request('/scan/redeem', { method: 'POST', body: { code, occurrenceId: occurrenceId || null, gate }, token });
 
 export const scanStats = (occurrenceId, token) =>
-  request(`/scan/stats?occurrenceId=${encodeURIComponent(occurrenceId)}`, { token });
+  request(`/scan/stats${occurrenceId ? `?occurrenceId=${encodeURIComponent(occurrenceId)}` : ''}`, { token });
+
+export const scanHistory = (occurrenceId, token) =>
+  request(`/scan/history${occurrenceId ? `?occurrenceId=${encodeURIComponent(occurrenceId)}` : ''}`, { token });
