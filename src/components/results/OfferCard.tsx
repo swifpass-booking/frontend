@@ -1,9 +1,10 @@
-import { formatMoney, formatTime, formatDate, formatDuration } from './data.js';
-import { ModeIcon, ClockIcon, ChevronRightIcon } from './icons.jsx';
+import { formatMoney, formatTime, formatDate, formatDuration } from '../../lib/format';
+import { ModeIcon, ClockIcon, ChevronRightIcon } from '../icons';
+import type { Offer, TravelMode } from '../../types/domain';
 
-const MODE_LABEL = { air: 'Flight', bus: 'Bus', rail: 'Train', event: 'Event' };
+const MODE_LABEL: Record<TravelMode, string> = { air: 'Flight', bus: 'Bus', rail: 'Train', event: 'Event' };
 
-export default function OfferCard({ offer, onSelect }) {
+export default function OfferCard({ offer, onSelect }: { offer: Offer; onSelect: (offer: Offer) => void }) {
   const isRoute = offer.mode !== 'event';
   const soldPct = Math.round(((offer.capacity - offer.seatsAvailable) / offer.capacity) * 100);
   const almostGone = offer.seatsAvailable > 0 && offer.seatsAvailable <= Math.max(4, Math.round(offer.capacity * 0.08));

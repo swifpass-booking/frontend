@@ -1,9 +1,10 @@
-import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import type { AuthContextValue, AuthSession, AuthUser } from '../types/auth';
 
-const AuthContext = createContext(null);
+const AuthContext = createContext<AuthContextValue | null>(null);
 const STORAGE_KEY = 'swiftpass.auth';
 
-async function api(path, body) {
+async function api<T>(path: string, body: unknown): Promise<T> {
   const res = await fetch(`/v1${path}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -13,11 +14,11 @@ async function api(path, body) {
   if (!res.ok) {
     throw new Error(json?.error?.message || 'Something went wrong. Try again.');
   }
-  return json;
+  return json as T;
 }
 
-export function AuthProvider({ children }) {
-  const [session, setSession] = useState(null);
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [session, setSession] = useState<AuthSession | null>(null);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -27,7 +28,7 @@ export function AuthProvider({ children }) {
       return;
     }
     try {
-      const { token, user } = JSON.parse(raw);
+      const { token, user } = JSON.parse(raw) as AuthSession;
       fetch('/v1/auth/me', { headers: { Authorization: `Bearer ${token}` } })
         .then((res) => (res.ok ? res.json() : Promise.reject()))
         .then((json) => setSession({ token, user: json.user }))
@@ -43,36 +44,44 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  const persist = (data) => {
+  const persist = (data: AuthSession) => {
     setSession(data);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   };
 
-  const login = useCallback(async (identifier, password) => {
-    const data = await api('/auth/login', { identifier, password });
+  const login = useCallback(async (identifier: string, password: string): Promise<AuthUser> => {
+    const data = await api<AuthSession>('/auth/login', { identifier, password });
     persist(data);
     return data.user;
   }, []);
 
-  const register = useCallback(async (fullName, identifier, password) => {
-    const data = await api('/auth/register', { fullName, identifier, password });
-    persist(data);
-    return data.user;
-  }, []);
+  const register = useCallback(
+    async (fullName: string, identifier: string, password: string): Promise<AuthUser> => {
+      const data = await api<AuthSession>('/auth/register', { fullName, identifier, password });
+      persist(data);
+      return data.user;
+    },
+    []
+  );
 
   const logout = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY);
     setSession(null);
   }, []);
 
-  return (
-    <AuthContext.Provider value={{ user: session?.user ?? null, token: session?.token ?? null, ready, login, register, logout }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  const value: AuthContextValue = {
+    user: session?.user ?? null,
+    token: session?.token ?? null,
+    ready,
+    login,
+    register,
+    logout,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-export function useAuth() {
+export function useAuth(): AuthContextValue {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error('useAuth must be used inside <AuthProvider>');
   return ctx;

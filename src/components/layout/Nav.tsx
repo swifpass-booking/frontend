@@ -1,14 +1,22 @@
 import { useState } from 'react';
-import { TicketIcon, MenuIcon, CloseIcon } from './icons.jsx';
-import { useAuth } from './AuthContext.jsx';
+import { TicketIcon, MenuIcon, CloseIcon } from '../icons';
+import { useAuth } from '../../context/AuthContext';
+import type { Page } from '../../types/domain';
 
-export default function Nav({ page, cartCount, onNavigate, onSignIn }) {
-  const isBooking = ['home', 'results', 'checkout', 'confirmation'].includes(page);
+interface NavProps {
+  page: Page;
+  cartCount: number;
+  onNavigate: (page: Page) => void;
+  onSignIn: () => void;
+}
+
+export default function Nav({ page, cartCount, onNavigate, onSignIn }: NavProps) {
+  const isBooking = (['home', 'results', 'checkout', 'confirmation'] as Page[]).includes(page);
   const { user, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
-  function handleMobileNavigate(p) {
+  function handleMobileNavigate(p: Page) {
     setMobileNavOpen(false);
     onNavigate(p);
   }
@@ -115,7 +123,11 @@ export default function Nav({ page, cartCount, onNavigate, onSignIn }) {
             className="grid h-9 w-9 place-items-center rounded-lg hover:bg-white/10 md:hidden"
             aria-label="Menu"
           >
-            {mobileNavOpen ? <CloseIcon className="h-5 w-5" width={20} height={20} /> : <MenuIcon className="h-5 w-5" width={20} height={20} />}
+            {mobileNavOpen ? (
+              <CloseIcon className="h-5 w-5" width={20} height={20} />
+            ) : (
+              <MenuIcon className="h-5 w-5" width={20} height={20} />
+            )}
           </button>
         </div>
       </div>

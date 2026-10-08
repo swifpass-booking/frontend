@@ -1,6 +1,8 @@
-import SearchWidget from './SearchWidget.jsx';
-import { OFFERS, formatMoney } from './data.js';
-import { ModeIcon, ShieldIcon, ClockIcon, CheckIcon } from './icons.jsx';
+import SearchWidget from '../components/search/SearchWidget';
+import { OFFERS } from '../lib/offers';
+import { formatMoney } from '../lib/format';
+import { ModeIcon, ShieldIcon, ClockIcon, CheckIcon } from '../components/icons';
+import type { Offer, SearchCriteria } from '../types/domain';
 
 const HIGHLIGHTS = [
   { icon: ShieldIcon, title: 'Tamper-proof tickets', body: 'Every QR is server-signed and device-bound — screenshots and reshares are rejected at the gate.' },
@@ -8,7 +10,7 @@ const HIGHLIGHTS = [
   { icon: CheckIcon, title: 'One checkout, every leg', body: 'Flight, connecting bus and event tickets — paid once, confirmed together.' },
 ];
 
-export default function Home({ onSearch }) {
+export default function Home({ onSearch }: { onSearch: (criteria: SearchCriteria) => void }) {
   const featured = pickFeatured();
 
   return (
@@ -64,7 +66,16 @@ export default function Home({ onSearch }) {
           {featured.map((o) => (
             <button
               key={o.offerId}
-              onClick={() => onSearch({ mode: o.mode, from: o.origin?.city || '', to: o.destination?.city || '', city: o.venue?.city || '', date: o.departsAt.slice(0, 10), passengers: 1 })}
+              onClick={() =>
+                onSearch({
+                  mode: o.mode,
+                  from: o.origin?.city || '',
+                  to: o.destination?.city || '',
+                  city: o.venue?.city || '',
+                  date: o.departsAt.slice(0, 10),
+                  passengers: 1,
+                })
+              }
               className="group flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-card transition hover:-translate-y-0.5 hover:shadow-popover"
             >
               <div className="flex h-28 items-center justify-center bg-gradient-to-br from-navy-800 to-navy-950 text-white/90">
@@ -86,9 +97,9 @@ export default function Home({ onSearch }) {
   );
 }
 
-function pickFeatured() {
-  const seen = new Set();
-  const out = [];
+function pickFeatured(): Offer[] {
+  const seen = new Set<string>();
+  const out: Offer[] = [];
   for (const o of OFFERS) {
     if (seen.has(o.mode)) continue;
     seen.add(o.mode);

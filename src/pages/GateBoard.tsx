@@ -1,7 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import jsQR from 'jsqr';
-import { adminOccurrences, scanHistory, scanRedeem, scanStats } from './api.js';
-import { ModeIcon } from './icons.jsx';
+import { adminOccurrences, scanHistory, scanRedeem, scanStats } from '../api/rest';
+import { ModeIcon } from '../components/icons';
+import type { AuthUser } from '../types/auth';
+import type { AdminOccurrenceRow } from '../types/admin';
+import type { RejectReason, ScanCounts, ScanEvent, ScanVerdict } from '../types/gate';
 
 /**
  * Swiftpass — Gate Board (operator console)
@@ -27,21 +30,21 @@ const C = {
   crimson: '#C6403C',
 };
 
-const REJECT_COPY = {
+const REJECT_COPY: Record<RejectReason, string> = {
   unknown_code: 'This code was not issued by Swiftpass.',
   wrong_occurrence: 'This ticket belongs to a different event.',
   revoked: 'This ticket was cancelled or refunded.',
   already_redeemed: 'Already used.',
 };
 
-function clockOf(iso) {
+function clockOf(iso: string): string {
   const d = new Date(iso);
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(
     d.getSeconds()
   ).padStart(2, '0')}`;
 }
 
-function Stat({ label, value, tone }) {
+function Stat({ label, value, tone }: { label: string; value: number; tone?: string }) {
   return (
     <div className="flex flex-col gap-1">
       <span className="text-[10px] uppercase tracking-[0.18em]" style={{ color: C.dim }}>
@@ -54,7 +57,7 @@ function Stat({ label, value, tone }) {
   );
 }
 
-function ScanRow({ e }) {
+function ScanRow({ e }: { e: ScanEvent }) {
   const tone = e.accepted ? C.jade : C.crimson;
   return (
     <div
@@ -85,49 +88,56 @@ function ScanRow({ e }) {
   );
 }
 
-export default function GateBoard({ user, token, onBack, onSignIn }) {
+interface GateBoardProps {
+  user: AuthUser | null;
+  token: string | null;
+  onBack: () => void;
+  onSignIn: () => void;
+}
+
+export default function GateBoard({ user, token, onBack, onSignIn }: GateBoardProps) {
   const isAdmin = user?.role === 'admin';
 
-  const [occurrences, setOccurrences] = useState([]);
+  const [occurrences, setOccurrences] = useState<AdminOccurrenceRow[]>([]);
   const [occurrenceId, setOccurrenceId] = useState('');
   const [gate, setGate] = useState('Gate A');
-  const [counts, setCounts] = useState({ issued: 0, redeemed: 0, void: 0 });
-  const [feed, setFeed] = useState([]);
-  const [verdict, setVerdict] = useState(null);
+  const [counts, setCounts] = useState<ScanCounts>({ issued: 0, redeemed: 0, void: 0 });
+  const [feed, setFeed] = useState<ScanEvent[]>([]);
+  const [verdict, setVerdict] = useState<ScanVerdict | null>(null);
   const [manualCode, setManualCode] = useState('');
   const [cameraOn, setCameraOn] = useState(false);
   const [cameraError, setCameraError] = useState('');
   const [error, setError] = useState('');
 
-  const videoRef = useRef(null);
-  const canvasRef = useRef(null);
-  const streamRef = useRef(null);
-  const rafRef = useRef(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const rafRef = useRef<number | null>(null);
   const busyRef = useRef(false);
   const lastCodeRef = useRef('');
-  const clearTimerRef = useRef(null);
+  const clearTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
     if (!isAdmin) return;
     adminOccurrences(token)
       .then((res) => setOccurrences(res.occurrences))
-      .catch((err) => setError(err.message));
+      .catch((err) => setError((err as Error).message));
   }, [isAdmin, token]);
 
   const refreshStats = useCallback(
-    (occId) => {
+    (occId: string) => {
       scanStats(occId, token)
         .then(setCounts)
-        .catch((err) => setError(err.message));
+        .catch((err) => setError((err as Error).message));
     },
     [token]
   );
 
   const refreshFeed = useCallback(
-    (occId) => {
+    (occId: string) => {
       scanHistory(occId, token)
         .then((res) => setFeed(res.scans))
-        .catch((err) => setError(err.message));
+        .catch((err) => setError((err as Error).message));
     },
     [token]
   );
@@ -147,7 +157,7 @@ export default function GateBoard({ user, token, onBack, onSignIn }) {
   }, [occurrenceId, refreshStats, refreshFeed]);
 
   const handleCode = useCallback(
-    async (code) => {
+    async (code: string) => {
       if (busyRef.current || !code) return;
       busyRef.current = true;
       try {
@@ -156,7 +166,7 @@ export default function GateBoard({ user, token, onBack, onSignIn }) {
         refreshStats(occurrenceId);
         refreshFeed(occurrenceId);
       } catch (err) {
-        setError(err.message);
+        setError((err as Error).message);
       } finally {
         clearTimeout(clearTimerRef.current);
         clearTimerRef.current = setTimeout(() => {
@@ -175,7 +185,7 @@ export default function GateBoard({ user, token, onBack, onSignIn }) {
     if (video && canvas && video.readyState === video.HAVE_ENOUGH_DATA) {
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
-      const ctx = canvas.getContext('2d');
+      const ctx = canvas.getContext('2d')!;
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const found = jsQR(frame.data, frame.width, frame.height);
@@ -199,7 +209,7 @@ export default function GateBoard({ user, token, onBack, onSignIn }) {
       setCameraOn(true);
       rafRef.current = requestAnimationFrame(tick);
     } catch (err) {
-      setCameraError(err.message || 'Could not access the camera.');
+      setCameraError((err as Error).message || 'Could not access the camera.');
     }
   }
 
@@ -212,7 +222,7 @@ export default function GateBoard({ user, token, onBack, onSignIn }) {
 
   useEffect(() => () => stopCamera(), []);
 
-  function submitManual(e) {
+  function submitManual(e: FormEvent) {
     e.preventDefault();
     if (manualCode.trim()) {
       handleCode(manualCode.trim());
@@ -287,7 +297,11 @@ export default function GateBoard({ user, token, onBack, onSignIn }) {
           )}
         </div>
 
-        {error && <p className="mb-4 text-sm font-semibold" style={{ color: C.crimson }}>{error}</p>}
+        {error && (
+          <p className="mb-4 text-sm font-semibold" style={{ color: C.crimson }}>
+            {error}
+          </p>
+        )}
 
         <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
           <div>
@@ -307,7 +321,11 @@ export default function GateBoard({ user, token, onBack, onSignIn }) {
                   >
                     Start camera
                   </button>
-                  {cameraError && <p className="max-w-xs text-center text-xs" style={{ color: C.crimson }}>{cameraError}</p>}
+                  {cameraError && (
+                    <p className="max-w-xs text-center text-xs" style={{ color: C.crimson }}>
+                      {cameraError}
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -330,7 +348,9 @@ export default function GateBoard({ user, token, onBack, onSignIn }) {
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-6 text-center" style={{ background: `${tone}EE` }}>
                   <span className="text-5xl text-white">{verdict.accepted ? '✓' : '✕'}</span>
                   <p className="text-xl font-bold text-white">{verdict.accepted ? 'ADMITTED' : 'REJECTED'}</p>
-                  <p className="text-sm text-white/90">{verdict.passengerName || REJECT_COPY[verdict.reason] || verdict.message}</p>
+                  <p className="text-sm text-white/90">
+                    {verdict.passengerName || (verdict.reason && REJECT_COPY[verdict.reason]) || verdict.message}
+                  </p>
                   {!verdict.accepted && <p className="text-xs text-white/75">{verdict.message}</p>}
                 </div>
               )}

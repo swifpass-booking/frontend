@@ -1,17 +1,19 @@
-import { useState } from 'react';
-import { useAuth } from './AuthContext.jsx';
-import { TicketIcon } from './icons.jsx';
+import { useState, type FormEvent } from 'react';
+import { useAuth } from '../../context/AuthContext';
+import { TicketIcon } from '../icons';
 
-export default function AuthModal({ onClose }) {
+type Mode = 'login' | 'register';
+
+export default function AuthModal({ onClose }: { onClose: () => void }) {
   const { login, register } = useAuth();
-  const [mode, setMode] = useState('login');
+  const [mode, setMode] = useState<Mode>('login');
   const [fullName, setFullName] = useState('');
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  async function submit(e) {
+  async function submit(e: FormEvent) {
     e.preventDefault();
     setError(null);
     setBusy(true);
@@ -23,7 +25,7 @@ export default function AuthModal({ onClose }) {
       }
       onClose();
     } catch (err) {
-      setError(err.message);
+      setError((err as Error).message);
     } finally {
       setBusy(false);
     }
@@ -53,14 +55,20 @@ export default function AuthModal({ onClose }) {
         <div className="mb-4 flex rounded-lg bg-slate-100 p-1 text-sm font-semibold">
           <button
             type="button"
-            onClick={() => { setMode('login'); setError(null); }}
+            onClick={() => {
+              setMode('login');
+              setError(null);
+            }}
             className={`flex-1 rounded-md py-1.5 transition ${mode === 'login' ? 'bg-white text-navy-950 shadow-sm' : 'text-slate-500'}`}
           >
             Sign in
           </button>
           <button
             type="button"
-            onClick={() => { setMode('register'); setError(null); }}
+            onClick={() => {
+              setMode('register');
+              setError(null);
+            }}
             className={`flex-1 rounded-md py-1.5 transition ${mode === 'register' ? 'bg-white text-navy-950 shadow-sm' : 'text-slate-500'}`}
           >
             Create account

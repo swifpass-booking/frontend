@@ -1,25 +1,35 @@
-import { useEffect, useState } from 'react';
-import { adminBookings, adminOccurrences, adminStats, adminUsers } from './api.js';
-import { formatMoney, formatDate, formatTime } from './data.js';
-import { ModeIcon, UsersIcon, TicketIcon, CalendarIcon, ClockIcon } from './icons.jsx';
+import { useEffect, useState, type SVGProps } from 'react';
+import { adminBookings, adminOccurrences, adminStats, adminUsers } from '../api/rest';
+import { formatMoney, formatDate, formatTime } from '../lib/format';
+import { ModeIcon, UsersIcon, TicketIcon, CalendarIcon, ClockIcon } from '../components/icons';
+import type { AuthUser } from '../types/auth';
+import type { AdminBookingRow, AdminDashboardData, AdminOccurrenceRow, AdminUserRow } from '../types/admin';
+import type { TravelMode } from '../types/domain';
 
-const MODE_LABEL = { air: 'Flights', bus: 'Buses', rail: 'Trains', event: 'Events' };
+const MODE_LABEL: Record<TravelMode, string> = { air: 'Flights', bus: 'Buses', rail: 'Trains', event: 'Events' };
 
-const OCCURRENCE_STATUS_STYLE = {
+const OCCURRENCE_STATUS_STYLE: Record<string, string> = {
   scheduled: 'bg-emerald-100 text-emerald-700',
   cancelled: 'bg-red-100 text-red-700',
   completed: 'bg-slate-100 text-slate-600',
 };
 
-const BOOKING_STATUS_STYLE = {
+const BOOKING_STATUS_STYLE: Record<string, string> = {
   confirmed: 'bg-emerald-100 text-emerald-700',
   cancelled: 'bg-red-100 text-red-700',
   refunded: 'bg-slate-100 text-slate-600',
 };
 
-const PAYMENT_METHOD_LABEL = { esewa: 'eSewa', khalti: 'Khalti', fonepay: 'FonePay', card: 'Card' };
+const PAYMENT_METHOD_LABEL: Record<string, string> = { esewa: 'eSewa', khalti: 'Khalti', fonepay: 'FonePay', card: 'Card' };
 
-function StatTile({ icon: Icon, label, value, sub }) {
+interface StatTileProps {
+  icon: (props: SVGProps<SVGSVGElement>) => JSX.Element;
+  label: string;
+  value: string | number;
+  sub?: string;
+}
+
+function StatTile({ icon: Icon, label, value, sub }: StatTileProps) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-card">
       <div className="flex items-center gap-2 text-slate-400">
@@ -32,7 +42,7 @@ function StatTile({ icon: Icon, label, value, sub }) {
   );
 }
 
-function BookingsByMode({ rows }) {
+function BookingsByMode({ rows }: { rows: { mode: TravelMode; count: number }[] }) {
   const max = Math.max(1, ...rows.map((r) => r.count));
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-card">
@@ -45,10 +55,7 @@ function BookingsByMode({ rows }) {
             </span>
             <span className="w-16 shrink-0 text-sm font-semibold text-navy-950">{MODE_LABEL[r.mode]}</span>
             <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-slate-100">
-              <div
-                className="h-full rounded-full bg-brand-blue"
-                style={{ width: `${(r.count / max) * 100}%` }}
-              />
+              <div className="h-full rounded-full bg-brand-blue" style={{ width: `${(r.count / max) * 100}%` }} />
             </div>
             <span className="w-6 shrink-0 text-right text-sm font-bold text-navy-950">{r.count}</span>
           </div>
@@ -58,7 +65,7 @@ function BookingsByMode({ rows }) {
   );
 }
 
-function RecentBookings({ rows }) {
+function RecentBookings({ rows }: { rows: AdminBookingRow[] }) {
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-card">
       <h2 className="mb-4 text-base font-extrabold text-navy-950">Recent bookings</h2>
@@ -86,7 +93,7 @@ function RecentBookings({ rows }) {
   );
 }
 
-function BookingsTable({ rows }) {
+function BookingsTable({ rows }: { rows: AdminBookingRow[] }) {
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-card">
       <h2 className="mb-4 text-base font-extrabold text-navy-950">All bookings</h2>
@@ -117,9 +124,7 @@ function BookingsTable({ rows }) {
                       <span className="font-semibold text-navy-950">{b.title}</span>
                     </div>
                   </td>
-                  <td className="py-2.5 pr-4 text-slate-600">
-                    {b.passengers.map((p) => p.fullName).join(', ')}
-                  </td>
+                  <td className="py-2.5 pr-4 text-slate-600">{b.passengers.map((p) => p.fullName).join(', ')}</td>
                   <td className="py-2.5 pr-4 text-slate-600">
                     <div>{b.contact.phoneE164}</div>
                     {b.contact.email && <div className="text-xs text-slate-400">{b.contact.email}</div>}
@@ -148,7 +153,7 @@ function BookingsTable({ rows }) {
   );
 }
 
-function OccurrencesTable({ rows }) {
+function OccurrencesTable({ rows }: { rows: AdminOccurrenceRow[] }) {
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-card">
       <h2 className="mb-4 text-base font-extrabold text-navy-950">Occurrences</h2>
@@ -195,7 +200,7 @@ function OccurrencesTable({ rows }) {
   );
 }
 
-function UsersTable({ rows }) {
+function UsersTable({ rows }: { rows: AdminUserRow[] }) {
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-card">
       <h2 className="mb-4 text-base font-extrabold text-navy-950">Users</h2>
@@ -233,8 +238,15 @@ function UsersTable({ rows }) {
   );
 }
 
-export default function AdminDashboard({ user, token, onBack, onSignIn }) {
-  const [data, setData] = useState(null);
+interface AdminDashboardProps {
+  user: AuthUser | null;
+  token: string | null;
+  onBack: () => void;
+  onSignIn: () => void;
+}
+
+export default function AdminDashboard({ user, token, onBack, onSignIn }: AdminDashboardProps) {
+  const [data, setData] = useState<AdminDashboardData | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
 
@@ -252,7 +264,7 @@ export default function AdminDashboard({ user, token, onBack, onSignIn }) {
         if (cancelled) return;
         setData({ stats, bookings: bookings.bookings, occurrences: occurrences.occurrences, users: users.users });
       })
-      .catch((err) => !cancelled && setError(err.message))
+      .catch((err) => !cancelled && setError((err as Error).message))
       .finally(() => !cancelled && setLoading(false));
     return () => {
       cancelled = true;
@@ -295,17 +307,8 @@ export default function AdminDashboard({ user, token, onBack, onSignIn }) {
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <StatTile icon={UsersIcon} label="Users" value={data.stats.totalUsers} />
               <StatTile icon={TicketIcon} label="Bookings" value={data.stats.totalBookings} />
-              <StatTile
-                icon={ClockIcon}
-                label="Revenue"
-                value={formatMoney(data.stats.totalRevenue)}
-                sub="confirmed bookings"
-              />
-              <StatTile
-                icon={CalendarIcon}
-                label="Upcoming departures"
-                value={data.stats.upcomingOccurrences}
-              />
+              <StatTile icon={ClockIcon} label="Revenue" value={formatMoney(data.stats.totalRevenue)} sub="confirmed bookings" />
+              <StatTile icon={CalendarIcon} label="Upcoming departures" value={data.stats.upcomingOccurrences} />
             </div>
 
             <div className="grid gap-6 lg:grid-cols-[320px_1fr]">

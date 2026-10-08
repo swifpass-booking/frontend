@@ -1,9 +1,16 @@
-import { useState, useMemo } from 'react';
-import { MODES, citiesForMode } from './data.js';
-import { ModeIcon, SearchIcon, CalendarIcon, UsersIcon, MapPinIcon } from './icons.jsx';
+import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { MODES, citiesForMode } from '../../lib/offers';
+import { ModeIcon, SearchIcon, CalendarIcon, UsersIcon, MapPinIcon } from '../icons';
+import type { SearchCriteria, TravelMode } from '../../types/domain';
 
-export default function SearchWidget({ initial, onSearch, compact = false }) {
-  const [mode, setMode] = useState(initial?.mode || 'air');
+interface SearchWidgetProps {
+  initial?: Partial<SearchCriteria>;
+  onSearch: (criteria: SearchCriteria) => void;
+  compact?: boolean;
+}
+
+export default function SearchWidget({ initial, onSearch, compact = false }: SearchWidgetProps) {
+  const [mode, setMode] = useState<TravelMode>(initial?.mode || 'air');
   const [from, setFrom] = useState(initial?.from || '');
   const [to, setTo] = useState(initial?.to || '');
   const [city, setCity] = useState(initial?.city || '');
@@ -13,7 +20,7 @@ export default function SearchWidget({ initial, onSearch, compact = false }) {
   const cities = useMemo(() => citiesForMode(mode), [mode]);
   const isEvent = mode === 'event';
 
-  function submit(e) {
+  function submit(e: FormEvent) {
     e.preventDefault();
     onSearch({ mode, from, to, city, date, passengers });
   }
@@ -32,9 +39,7 @@ export default function SearchWidget({ initial, onSearch, compact = false }) {
               setCity('');
             }}
             className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold transition ${
-              mode === m.key
-                ? 'bg-navy-950 text-white'
-                : 'text-navy-700 hover:bg-slate-100'
+              mode === m.key ? 'bg-navy-950 text-white' : 'text-navy-700 hover:bg-slate-100'
             }`}
           >
             <ModeIcon mode={m.key} className="h-4 w-4" width={16} height={16} />
@@ -106,7 +111,13 @@ export default function SearchWidget({ initial, onSearch, compact = false }) {
   );
 }
 
-function Field({ label, icon: Icon, children }) {
+interface FieldProps {
+  label: string;
+  icon: (props: { className?: string; width?: number; height?: number }) => JSX.Element;
+  children: ReactNode;
+}
+
+function Field({ label, icon: Icon, children }: FieldProps) {
   return (
     <label className="block">
       <span className="mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-navy-700/70">

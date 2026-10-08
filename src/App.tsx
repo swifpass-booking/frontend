@@ -1,37 +1,41 @@
 import { useState } from 'react';
-import Nav from './Nav.jsx';
-import Home from './Home.jsx';
-import Results from './Results.jsx';
-import Checkout from './Checkout.jsx';
-import Confirmation from './Confirmation.jsx';
-import Ops from './Ops.jsx';
-import AdminDashboard from './AdminDashboard.jsx';
-import AuthModal from './AuthModal.jsx';
-import { AuthProvider, useAuth } from './AuthContext.jsx';
+import Nav from './components/layout/Nav';
+import Footer from './components/layout/Footer';
+import AuthModal from './components/auth/AuthModal';
+import VoiceConcierge from './components/agent/VoiceConcierge';
+import Home from './pages/Home';
+import Results from './pages/Results';
+import Checkout from './pages/Checkout';
+import Confirmation from './pages/Confirmation';
+import Ops from './pages/Ops';
+import AdminDashboard from './pages/AdminDashboard';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import type { BookingDraft, Offer, Page, SearchCriteria } from './types/domain';
 
 function AppShell() {
-  const [page, setPage] = useState('home');
-  const [criteria, setCriteria] = useState(null);
-  const [selectedOffer, setSelectedOffer] = useState(null);
+  const [page, setPage] = useState<Page>('home');
+  const [criteria, setCriteria] = useState<SearchCriteria | null>(null);
+  const [selectedOffer, setSelectedOffer] = useState<Offer | null>(null);
   const [passengers, setPassengers] = useState(1);
-  const [booking, setBooking] = useState(null);
+  const [booking, setBooking] = useState<BookingDraft | null>(null);
   const [authOpen, setAuthOpen] = useState(false);
   const { user, token } = useAuth();
 
-  function handleSearch(c) {
+  function handleSearch(c: SearchCriteria) {
     setCriteria(c);
     setPassengers(c.passengers || 1);
     setPage('results');
     window.scrollTo({ top: 0, behavior: 'instant' });
   }
 
-  function handleSelect(offer) {
+  function handleSelect(offer: Offer, offerPassengers?: number) {
     setSelectedOffer(offer);
+    if (offerPassengers) setPassengers(offerPassengers);
     setPage('checkout');
     window.scrollTo({ top: 0, behavior: 'instant' });
   }
 
-  function handleConfirm(details) {
+  function handleConfirm(details: BookingDraft) {
     setBooking(details);
     setPage('confirmation');
     window.scrollTo({ top: 0, behavior: 'instant' });
@@ -81,13 +85,11 @@ function AppShell() {
         <AdminDashboard user={user} token={token} onBack={goHome} onSignIn={() => setAuthOpen(true)} />
       )}
 
-      {page !== 'ops' && page !== 'admin' && (
-        <footer className="border-t border-slate-200 bg-white py-8 text-center text-xs text-slate-400">
-          Swiftpass — prototype booking console. Prices and inventory are seed data, not live.
-        </footer>
-      )}
+      {page !== 'ops' && page !== 'admin' && <Footer />}
 
       {authOpen && <AuthModal onClose={() => setAuthOpen(false)} />}
+
+      <VoiceConcierge token={token} onReviewOffer={handleSelect} />
     </div>
   );
 }

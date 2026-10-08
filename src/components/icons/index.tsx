@@ -1,14 +1,25 @@
 // Small inline SVG icon set — no external icon package needed.
-const base = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round' };
+import type { SVGProps } from 'react';
+import type { TravelMode } from '../../types/domain';
 
-export function PlaneIcon(props) {
+type IconProps = SVGProps<SVGSVGElement>;
+
+const base: IconProps = {
+  fill: 'none',
+  stroke: 'currentColor',
+  strokeWidth: 1.8,
+  strokeLinecap: 'round',
+  strokeLinejoin: 'round',
+};
+
+export function PlaneIcon(props: IconProps) {
   return (
     <svg viewBox="0 0 24 24" {...base} {...props}>
       <path d="M10.5 20.5l1.5-4.5-7-2.5 1-2 8 1 3.5-6.5c.4-.7 1.4-.9 2.1-.4.5.4.7 1.1.4 1.7L16.5 14.5l1 8-2-1-2-4-3 3v0z" />
     </svg>
   );
 }
-export function BusIcon(props) {
+export function BusIcon(props: IconProps) {
   return (
     <svg viewBox="0 0 24 24" {...base} {...props}>
       <rect x="4" y="4" width="16" height="12" rx="2" />
@@ -18,7 +29,7 @@ export function BusIcon(props) {
     </svg>
   );
 }
-export function TrainIcon(props) {
+export function TrainIcon(props: IconProps) {
   return (
     <svg viewBox="0 0 24 24" {...base} {...props}>
       <rect x="6" y="3" width="12" height="14" rx="3" />
@@ -28,7 +39,7 @@ export function TrainIcon(props) {
     </svg>
   );
 }
-export function TicketIcon(props) {
+export function TicketIcon(props: IconProps) {
   return (
     <svg viewBox="0 0 24 24" {...base} {...props}>
       <path d="M3 9a2 2 0 002-2V6a1 1 0 011-1h12a1 1 0 011 1v1a2 2 0 000 4v1a2 2 0 000 4v1a1 1 0 01-1 1H6a1 1 0 01-1-1v-1a2 2 0 002-2" />
@@ -36,7 +47,7 @@ export function TicketIcon(props) {
     </svg>
   );
 }
-export function SearchIcon(props) {
+export function SearchIcon(props: IconProps) {
   return (
     <svg viewBox="0 0 24 24" {...base} {...props}>
       <circle cx="11" cy="11" r="7" />
@@ -44,7 +55,7 @@ export function SearchIcon(props) {
     </svg>
   );
 }
-export function CalendarIcon(props) {
+export function CalendarIcon(props: IconProps) {
   return (
     <svg viewBox="0 0 24 24" {...base} {...props}>
       <rect x="3" y="5" width="18" height="16" rx="2" />
@@ -52,7 +63,7 @@ export function CalendarIcon(props) {
     </svg>
   );
 }
-export function UsersIcon(props) {
+export function UsersIcon(props: IconProps) {
   return (
     <svg viewBox="0 0 24 24" {...base} {...props}>
       <circle cx="9" cy="8" r="3" />
@@ -60,21 +71,21 @@ export function UsersIcon(props) {
     </svg>
   );
 }
-export function CheckIcon(props) {
+export function CheckIcon(props: IconProps) {
   return (
     <svg viewBox="0 0 24 24" {...base} {...props}>
       <path d="M20 6L9 17l-5-5" />
     </svg>
   );
 }
-export function ChevronRightIcon(props) {
+export function ChevronRightIcon(props: IconProps) {
   return (
     <svg viewBox="0 0 24 24" {...base} {...props}>
       <path d="M9 6l6 6-6 6" />
     </svg>
   );
 }
-export function ShieldIcon(props) {
+export function ShieldIcon(props: IconProps) {
   return (
     <svg viewBox="0 0 24 24" {...base} {...props}>
       <path d="M12 3l7 3v6c0 4.5-3 8-7 9-4-1-7-4.5-7-9V6l7-3z" />
@@ -82,7 +93,7 @@ export function ShieldIcon(props) {
     </svg>
   );
 }
-export function ClockIcon(props) {
+export function ClockIcon(props: IconProps) {
   return (
     <svg viewBox="0 0 24 24" {...base} {...props}>
       <circle cx="12" cy="12" r="9" />
@@ -90,7 +101,7 @@ export function ClockIcon(props) {
     </svg>
   );
 }
-export function MapPinIcon(props) {
+export function MapPinIcon(props: IconProps) {
   return (
     <svg viewBox="0 0 24 24" {...base} {...props}>
       <path d="M12 21s7-6.6 7-11.5A7 7 0 105 9.5C5 14.4 12 21 12 21z" />
@@ -98,14 +109,14 @@ export function MapPinIcon(props) {
     </svg>
   );
 }
-export function MenuIcon(props) {
+export function MenuIcon(props: IconProps) {
   return (
     <svg viewBox="0 0 24 24" {...base} {...props}>
       <path d="M4 7h16M4 12h16M4 17h16" />
     </svg>
   );
 }
-export function CloseIcon(props) {
+export function CloseIcon(props: IconProps) {
   return (
     <svg viewBox="0 0 24 24" {...base} {...props}>
       <path d="M6 6l12 12M18 6L6 18" />
@@ -113,8 +124,31 @@ export function CloseIcon(props) {
   );
 }
 
-export function ModeIcon({ mode, ...props }) {
-  const map = { air: PlaneIcon, bus: BusIcon, rail: TrainIcon, event: TicketIcon };
-  const Cmp = map[mode] || TicketIcon;
+export function MicIcon(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" {...base} {...props}>
+      <rect x="9" y="3" width="6" height="11" rx="3" />
+      <path d="M5 11a7 7 0 0014 0M12 18v3M9 21h6" />
+    </svg>
+  );
+}
+
+export function SendIcon(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" {...base} {...props}>
+      <path d="M4 12l16-8-6 8 6 8-16-8z" />
+    </svg>
+  );
+}
+
+const MODE_ICONS: Record<TravelMode, (props: IconProps) => JSX.Element> = {
+  air: PlaneIcon,
+  bus: BusIcon,
+  rail: TrainIcon,
+  event: TicketIcon,
+};
+
+export function ModeIcon({ mode, ...props }: { mode: TravelMode } & IconProps) {
+  const Cmp = MODE_ICONS[mode] || TicketIcon;
   return <Cmp {...props} />;
 }

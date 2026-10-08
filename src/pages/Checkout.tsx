@@ -1,22 +1,33 @@
 import { useMemo, useState } from 'react';
-import { formatMoney, formatTime, formatDate } from './data.js';
-import { ModeIcon, ShieldIcon } from './icons.jsx';
-import { createBooking } from './api.js';
+import { formatMoney, formatTime, formatDate } from '../lib/format';
+import { ModeIcon, ShieldIcon } from '../components/icons';
+import { createBooking } from '../api/rest';
+import type { AuthUser } from '../types/auth';
+import type { BookingDraft, Offer, PaymentMethod } from '../types/domain';
 
-const PAYMENT_METHODS = [
+const PAYMENT_METHODS: { key: PaymentMethod; label: string }[] = [
   { key: 'esewa', label: 'eSewa' },
   { key: 'khalti', label: 'Khalti' },
   { key: 'fonepay', label: 'FonePay' },
   { key: 'card', label: 'Card' },
 ];
 
-export default function Checkout({ offer, passengers, account, token, onBack, onConfirm }) {
-  const [names, setNames] = useState(
+interface CheckoutProps {
+  offer: Offer | null;
+  passengers: number;
+  account: AuthUser | null;
+  token: string | null;
+  onBack: () => void;
+  onConfirm: (booking: BookingDraft) => void;
+}
+
+export default function Checkout({ offer, passengers, account, token, onBack, onConfirm }: CheckoutProps) {
+  const [names, setNames] = useState<string[]>(
     Array.from({ length: passengers }, (_, i) => (i === 0 ? account?.fullName || '' : ''))
   );
   const [phone, setPhone] = useState(account?.phoneE164 || '');
   const [email, setEmail] = useState(account?.email || '');
-  const [payment, setPayment] = useState('esewa');
+  const [payment, setPayment] = useState<PaymentMethod>('esewa');
   const [agreed, setAgreed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -26,7 +37,7 @@ export default function Checkout({ offer, passengers, account, token, onBack, on
     [names, phone, agreed]
   );
 
-  function updateName(i, value) {
+  function updateName(i: number, value: string) {
     setNames((prev) => prev.map((n, idx) => (idx === i ? value : n)));
   }
 
@@ -49,10 +60,10 @@ export default function Checkout({ offer, passengers, account, token, onBack, on
     setError('');
     setSubmitting(true);
     try {
-      const booking = await createBooking({ offer, names, phone, email, payment, total }, token);
-      onConfirm({ offer, passengers, names, phone, email, payment, total, ...booking });
+      const booking = await createBooking({ offer: offer as Offer, names, phone, email, payment, total }, token);
+      onConfirm({ offer: offer as Offer, passengers, names, phone, email, payment, total, ...booking });
     } catch (err) {
-      setError(err.message || 'Payment could not be confirmed. Try again.');
+      setError((err as Error).message || 'Payment could not be confirmed. Try again.');
     } finally {
       setSubmitting(false);
     }

@@ -1,25 +1,35 @@
 import { useMemo, useState } from 'react';
-import SearchWidget from './SearchWidget.jsx';
-import OfferCard from './OfferCard.jsx';
-import { searchOffers } from './data.js';
-import { ModeIcon } from './icons.jsx';
+import SearchWidget from '../components/search/SearchWidget';
+import OfferCard from '../components/results/OfferCard';
+import { searchOffers } from '../lib/offers';
+import { ModeIcon } from '../components/icons';
+import type { Offer, SearchCriteria } from '../types/domain';
 
 const SORTS = [
   { key: 'recommended', label: 'Recommended' },
   { key: 'price', label: 'Price: low to high' },
   { key: 'departure', label: 'Departure time' },
-];
+] as const;
 
-export default function Results({ criteria, onSearch, onSelect }) {
-  const [sort, setSort] = useState('recommended');
-  const [maxPrice, setMaxPrice] = useState(null);
+type SortKey = (typeof SORTS)[number]['key'];
+
+interface ResultsProps {
+  criteria: SearchCriteria;
+  onSearch: (criteria: SearchCriteria) => void;
+  onSelect: (offer: Offer) => void;
+}
+
+export default function Results({ criteria, onSearch, onSelect }: ResultsProps) {
+  const [sort, setSort] = useState<SortKey>('recommended');
+  const [maxPrice, setMaxPrice] = useState<number | null>(null);
 
   const results = useMemo(() => {
     let list = searchOffers(criteria);
     const ceiling = maxPrice ?? Infinity;
     list = list.filter((o) => o.price.amount / 100 <= ceiling);
     if (sort === 'price') list = [...list].sort((a, b) => a.price.amount - b.price.amount);
-    if (sort === 'departure') list = [...list].sort((a, b) => new Date(a.departsAt) - new Date(b.departsAt));
+    if (sort === 'departure')
+      list = [...list].sort((a, b) => new Date(a.departsAt).getTime() - new Date(b.departsAt).getTime());
     return list;
   }, [criteria, sort, maxPrice]);
 
@@ -58,7 +68,7 @@ export default function Results({ criteria, onSearch, onSelect }) {
             <span className="text-slate-500">Sort</span>
             <select
               value={sort}
-              onChange={(e) => setSort(e.target.value)}
+              onChange={(e) => setSort(e.target.value as SortKey)}
               className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-medium text-navy-950 outline-none focus:border-brand-blue"
             >
               {SORTS.map((s) => (

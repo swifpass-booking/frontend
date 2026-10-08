@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef } from 'react';
 import QRCode from 'qrcode';
-import { formatMoney, formatTime, formatDate } from './data.js';
-import { CheckIcon, ModeIcon } from './icons.jsx';
+import { formatMoney, formatTime, formatDate } from '../lib/format';
+import { CheckIcon, ModeIcon } from '../components/icons';
+import type { BookingDraft, Ticket } from '../types/domain';
 
-function reference() {
+function reference(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let s = 'SWP-';
   for (let i = 0; i < 6; i++) s += chars[Math.floor(Math.random() * chars.length)];
@@ -11,8 +12,8 @@ function reference() {
 }
 
 /** A real, scannable QR encoding the server-issued ticket credential. */
-function TicketQr({ code }) {
-  const canvasRef = useRef(null);
+function TicketQr({ code }: { code: string }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     if (canvasRef.current && code) {
@@ -27,8 +28,16 @@ function TicketQr({ code }) {
   return <canvas ref={canvasRef} className="rounded-lg shadow-sm ring-1 ring-slate-200" />;
 }
 
+interface TicketMeta {
+  title: string;
+  providerName: string;
+  date: string | null;
+  time: string | null;
+  reference: string;
+}
+
 /** Renders one ticket (details + QR) to a PNG data URL for download. */
-async function ticketToDataUrl(ticket, meta) {
+async function ticketToDataUrl(ticket: Ticket, meta: TicketMeta): Promise<string> {
   const qrCanvas = document.createElement('canvas');
   await QRCode.toCanvas(qrCanvas, ticket.code, {
     width: 200,
@@ -41,7 +50,7 @@ async function ticketToDataUrl(ticket, meta) {
   const canvas = document.createElement('canvas');
   canvas.width = W;
   canvas.height = H;
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext('2d')!;
 
   ctx.fillStyle = '#FFFFFF';
   ctx.fillRect(0, 0, W, H);
@@ -93,7 +102,7 @@ async function ticketToDataUrl(ticket, meta) {
   return canvas.toDataURL('image/png');
 }
 
-function triggerDownload(dataUrl, filename) {
+function triggerDownload(dataUrl: string, filename: string) {
   const a = document.createElement('a');
   a.href = dataUrl;
   a.download = filename;
@@ -102,7 +111,7 @@ function triggerDownload(dataUrl, filename) {
   a.remove();
 }
 
-export default function Confirmation({ booking, onDone }) {
+export default function Confirmation({ booking, onDone }: { booking: BookingDraft | null; onDone: () => void }) {
   const fallbackRef = useMemo(reference, []);
   const ref = booking?.reference || fallbackRef;
 
@@ -121,7 +130,7 @@ export default function Confirmation({ booking, onDone }) {
 
   async function handleDownload() {
     if (!tickets?.length) return;
-    const meta = {
+    const meta: TicketMeta = {
       title: offer.title,
       providerName: offer.provider.displayName,
       date: formatDate(offer.departsAt),
@@ -184,7 +193,9 @@ export default function Confirmation({ booking, onDone }) {
               {offer.venue && (
                 <div className="col-span-2">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Venue</p>
-                  <p className="font-bold text-navy-950">{offer.venue.name}, {offer.venue.city}</p>
+                  <p className="font-bold text-navy-950">
+                    {offer.venue.name}, {offer.venue.city}
+                  </p>
                 </div>
               )}
             </div>

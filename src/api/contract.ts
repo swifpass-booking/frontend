@@ -27,6 +27,7 @@ export type CartId = `crt_${string}`;
 export type BookingId = `bkg_${string}`;
 export type TicketId = `tkt_${string}`;
 export type AgentSessionId = `ags_${string}`;
+export type OrganisationId = `org_${string}`;
 
 export interface Money {
   amount: Minor;
@@ -151,6 +152,26 @@ export interface JourneyBundle {
 }
 
 // ─────────────────────────────────────────────────────────────────────
+// Stays (hotel-style inventory) — same hold/checkout flow as transport.
+// ─────────────────────────────────────────────────────────────────────
+export interface StaySearchRequest {
+  cityOrPlaceId: string;
+  checkIn: string;                 // YYYY-MM-DD
+  checkOut: string;                // YYYY-MM-DD
+  guests: { adults: number; children: number };
+  maxPrice?: Minor;
+  currency?: Currency;
+}
+
+export interface CreateStayHoldRequest {
+  roomId: string;
+  checkIn: string;
+  checkOut: string;
+  guests: number;
+  ttlSeconds?: number;
+}
+
+// ─────────────────────────────────────────────────────────────────────
 // Seat map
 // ─────────────────────────────────────────────────────────────────────
 export type SeatState = 'available' | 'held' | 'sold' | 'blocked';
@@ -252,6 +273,12 @@ export interface BookingItem {
   failureReason: string | null;
 }
 
+export interface Itinerary {
+  bookingId: BookingId;
+  legs: { legIndex: number; offer: Offer }[];
+  tickets: TicketSummary[];
+}
+
 // ─────────────────────────────────────────────────────────────────────
 // Tickets & validation
 // ─────────────────────────────────────────────────────────────────────
@@ -277,6 +304,12 @@ export interface TicketCredential {
   rotationIntervalSeconds: number; // 30
   /** Only returned once, at issuance. Store in Keychain / Keystore. */
   rotationSecret?: string;
+}
+
+export interface WalletBundle {
+  bookingId: BookingId;
+  deviceId: string;
+  credentials: TicketCredential[];
 }
 
 export type RejectReason =
@@ -340,6 +373,55 @@ export interface RedemptionSyncResponse {
   accepted: number;
   duplicates: { ticketId: TicketId; conflictingDeviceIds: string[] }[];
   rejected: { ticketId: TicketId; reason: string }[];
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Gate operations & organiser console
+// ─────────────────────────────────────────────────────────────────────
+export interface GateReadiness {
+  occurrenceId: OccurrenceId;
+  manifestReady: boolean;
+  issuedTickets: number;
+  scanDevicesRegistered: number;
+  warnings: string[];
+}
+
+export interface GateLease {
+  leaseId: string;
+  gateServerId: string;
+  occurrenceId: OccurrenceId;
+  expiresAt: Iso8601;
+}
+
+export interface OccurrenceDashboard {
+  occurrenceId: OccurrenceId;
+  issued: number;
+  redeemed: number;
+  void: number;
+  lastScanAt: Iso8601 | null;
+}
+
+export interface PostEventReport {
+  occurrenceId: OccurrenceId;
+  totalIssued: number;
+  totalRedeemed: number;
+  noShowRate: number;
+  revenue: Money;
+}
+
+export interface CreateOccurrenceRequest {
+  serviceId: string;
+  departsAt: Iso8601;
+  arrivesAt: Iso8601 | null;
+  capacity: number;
+  basePrice: Money;
+}
+
+export interface OrganisationRegistration {
+  legalName: string;
+  displayName: string;
+  modes: TravelMode[];
+  contactEmail: string;
 }
 
 // ─────────────────────────────────────────────────────────────────────
