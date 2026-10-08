@@ -48,20 +48,6 @@ export default function Nav({ page, cartCount, onNavigate, onSignIn }: NavProps)
           >
             Book a trip
           </button>
-          <button
-            onClick={() => onNavigate('ops')}
-            className={`transition hover:text-white ${page === 'ops' ? 'text-white' : ''}`}
-          >
-            Operator console
-          </button>
-          {user?.role === 'admin' && (
-            <button
-              onClick={() => onNavigate('admin')}
-              className={`transition hover:text-white ${page === 'admin' ? 'text-white' : ''}`}
-            >
-              Admin
-            </button>
-          )}
           <a href="#" className="transition hover:text-white">
             Help
           </a>
@@ -142,20 +128,6 @@ export default function Nav({ page, cartCount, onNavigate, onSignIn }: NavProps)
             >
               Book a trip
             </button>
-            <button
-              onClick={() => handleMobileNavigate('ops')}
-              className={`rounded-lg px-3 py-2 text-left transition hover:bg-white/10 hover:text-white ${page === 'ops' ? 'text-white' : ''}`}
-            >
-              Operator console
-            </button>
-            {user?.role === 'admin' && (
-              <button
-                onClick={() => handleMobileNavigate('admin')}
-                className={`rounded-lg px-3 py-2 text-left transition hover:bg-white/10 hover:text-white ${page === 'admin' ? 'text-white' : ''}`}
-              >
-                Admin
-              </button>
-            )}
             <button
               onClick={() => handleMobileNavigate('checkout')}
               className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-left transition hover:bg-white/10 hover:text-white"

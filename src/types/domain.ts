@@ -1,6 +1,6 @@
 /**
  * Display-layer domain types for the Swiftpass booking console.
- * Shaped to match the seed data in `lib/mock-data.json` via `lib/offers.ts`.
+ * Shaped to match what the backend (POST /v1/search, see api/rest.ts toOffer) returns.
  * For the full backend API contract (search, holds, tickets, gate ops), see `api/contract.ts`.
  */
 

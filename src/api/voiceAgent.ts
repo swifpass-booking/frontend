@@ -18,3 +18,29 @@ export async function postVoiceTurn(payload: VoiceTurnRequest): Promise<VoiceTur
   }
   return json as VoiceTurnResponse;
 }
+
+/** POST a 16 kHz mono WAV to the SeamlessM4T STT endpoint; returns the transcript. */
+export async function transcribeAudio(wav: Blob, lang = 'en'): Promise<string> {
+  const res = await fetch(`/agent/stt?lang=${encodeURIComponent(lang)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'audio/wav' },
+    body: wav,
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json?.detail || 'Could not transcribe audio.');
+  return (json.text as string) || '';
+}
+
+/** Synthesize `text` with SeamlessM4T TTS; returns a WAV blob. */
+export async function synthesizeSpeech(text: string, lang = 'en'): Promise<Blob> {
+  const res = await fetch('/agent/tts', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text, lang }),
+  });
+  if (!res.ok) {
+    const json = await res.json().catch(() => ({}));
+    throw new Error(json?.detail || 'Could not synthesize speech.');
+  }
+  return res.blob();
+}

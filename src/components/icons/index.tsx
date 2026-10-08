@@ -152,3 +152,11 @@ export function ModeIcon({ mode, ...props }: { mode: TravelMode } & IconProps) {
   const Cmp = MODE_ICONS[mode] || TicketIcon;
   return <Cmp {...props} />;
 }
+
+export function MicOffIcon(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" {...base} {...props}>
+      <path d="M9 9v2a3 3 0 005.1 2.1M15 9.3V6a3 3 0 00-5.9-.8M5 11a7 7 0 0011.2 5.6M19 11a7 7 0 01-.6 2.8M12 18v3M9 21h6M3 3l18 18" />
+    </svg>
+  );
+}

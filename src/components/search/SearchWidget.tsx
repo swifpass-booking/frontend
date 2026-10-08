@@ -1,5 +1,8 @@
-import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
-import { MODES, citiesForMode } from '../../lib/offers';
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { fetchCities } from '../../api/rest';
+import { MODES } from '../../lib/offers';
+import VoiceOrb, { phaseLabel } from '../agent/VoiceOrb';
+import { useVoice } from '../../context/VoiceContext';
 import { ModeIcon, SearchIcon, CalendarIcon, UsersIcon, MapPinIcon } from '../icons';
 import type { SearchCriteria, TravelMode } from '../../types/domain';
 
@@ -14,10 +17,22 @@ export default function SearchWidget({ initial, onSearch, compact = false }: Sea
   const [from, setFrom] = useState(initial?.from || '');
   const [to, setTo] = useState(initial?.to || '');
   const [city, setCity] = useState(initial?.city || '');
-  const [date, setDate] = useState(initial?.date || '2026-09-14');
+  const [date, setDate] = useState(initial?.date || new Date().toISOString().slice(0, 10));
   const [passengers, setPassengers] = useState(initial?.passengers || 1);
 
-  const cities = useMemo(() => citiesForMode(mode), [mode]);
+  const { phase, active } = useVoice();
+  const [loaded, setLoaded] = useState<string[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    fetchCities(mode)
+      .then((c) => !cancelled && setLoaded(c))
+      .catch(() => !cancelled && setLoaded([]));
+    return () => {
+      cancelled = true;
+    };
+  }, [mode]);
+  // Keep values set by the voice assistant selectable even before/without the city list loading.
+  const cities = useMemo(() => [...new Set([...loaded, from, to, city].filter(Boolean))].map((c) => ({ city: c })), [loaded, from, to, city]);
   const isEvent = mode === 'event';
 
   function submit(e: FormEvent) {
@@ -99,13 +114,19 @@ export default function SearchWidget({ initial, onSearch, compact = false }: Sea
           </select>
         </Field>
 
-        <button
-          type="submit"
-          className="flex items-center justify-center gap-2 rounded-xl bg-brand-blue px-6 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 sm:mt-[22px]"
-        >
-          <SearchIcon className="h-4 w-4" width={16} height={16} />
-          Search
-        </button>
+        <div className="flex items-center gap-2 sm:mt-[22px]">
+          <div className="flex flex-col items-center">
+            <VoiceOrb />
+            {active && <span className="mt-0.5 text-[10px] font-semibold text-navy-700/70">{phaseLabel(phase)}</span>}
+          </div>
+          <button
+            type="submit"
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-brand-blue px-6 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700"
+          >
+            <SearchIcon className="h-4 w-4" width={16} height={16} />
+            Search
+          </button>
+        </div>
       </form>
     </div>
   );

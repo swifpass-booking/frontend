@@ -3,6 +3,7 @@ import { formatMoney, formatTime, formatDate } from '../lib/format';
 import { ModeIcon, ShieldIcon } from '../components/icons';
 import { createBooking } from '../api/rest';
 import type { AuthUser } from '../types/auth';
+import { redirectToGateway, savePendingCheckout } from '../lib/payment';
 import type { BookingDraft, Offer, PaymentMethod } from '../types/domain';
 
 const PAYMENT_METHODS: { key: PaymentMethod; label: string }[] = [
@@ -64,6 +65,12 @@ export default function Checkout({ offer, passengers, account, token, onBack, on
     setSubmitting(true);
     try {
       const booking = await createBooking({ offer: offer as Offer, names, phone, email, payment, total }, token, idempotencyKey.current);
+      if (booking.gateway) {
+        // eSewa / Khalti: nothing is booked until the gateway confirms — go pay, come back via /payment/<provider>.
+        savePendingCheckout({ offer: offer as Offer, passengers, names, phone, email, payment, total, reference: booking.reference });
+        redirectToGateway(booking.gateway);
+        return;
+      }
       onConfirm({ offer: offer as Offer, passengers, names, phone, email, payment, total, ...booking });
     } catch (err) {
       setError((err as Error).message || 'Payment could not be confirmed. Try again.');
@@ -145,6 +152,19 @@ export default function Checkout({ offer, passengers, account, token, onBack, on
                 </button>
               ))}
             </div>
+
+            {payment === 'esewa' && (
+              <p className="mt-4 rounded-xl bg-emerald-50 px-3.5 py-3 text-xs leading-relaxed text-emerald-900">
+                <span className="font-bold">eSewa test mode.</span> You'll be sent to eSewa's sandbox. Sign in with ID{' '}
+                <code className="font-bold">9806800001</code>, password <code className="font-bold">Nepal@123</code>, then MPIN{' '}
+                <code className="font-bold">1122</code> and OTP <code className="font-bold">123456</code>. No real money moves.
+              </p>
+            )}
+            {payment === 'khalti' && (
+              <p className="mt-4 rounded-xl bg-violet-50 px-3.5 py-3 text-xs leading-relaxed text-violet-900">
+                <span className="font-bold">Khalti test mode.</span> You'll be sent to Khalti's sandbox to pay with a test wallet. No real money moves.
+              </p>
+            )}
 
             <label className="mt-5 flex items-start gap-2.5 text-sm text-slate-600">
               <input

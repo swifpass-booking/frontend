@@ -93,9 +93,10 @@ interface GateBoardProps {
   token: string | null;
   onBack: () => void;
   onSignIn: () => void;
+  backLabel?: string;
 }
 
-export default function GateBoard({ user, token, onBack, onSignIn }: GateBoardProps) {
+export default function GateBoard({ user, token, onBack, onSignIn, backLabel = 'Back to booking site' }: GateBoardProps) {
   const isAdmin = user?.role === 'admin';
 
   const [occurrences, setOccurrences] = useState<AdminOccurrenceRow[]>([]);
@@ -241,7 +242,7 @@ export default function GateBoard({ user, token, onBack, onSignIn }: GateBoardPr
           onClick={user ? onBack : onSignIn}
           className="mt-5 rounded-xl bg-brand-blue px-5 py-2.5 text-sm font-bold text-white hover:bg-blue-700"
         >
-          {user ? 'Back to booking site' : 'Sign in'}
+          {user ? backLabel : 'Sign in'}
         </button>
       </div>
     );
@@ -254,7 +255,7 @@ export default function GateBoard({ user, token, onBack, onSignIn }: GateBoardPr
     <div style={{ background: C.ink, minHeight: '100vh' }}>
       <div className="border-b px-4 py-2.5 sm:px-6" style={{ borderColor: C.edge }}>
         <button onClick={onBack} className="text-sm font-semibold" style={{ color: C.dim }}>
-          ← Back to booking site
+          ← {backLabel}
         </button>
       </div>
 

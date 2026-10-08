@@ -1,5 +1,6 @@
 import SearchWidget from '../components/search/SearchWidget';
-import { OFFERS } from '../lib/offers';
+import { useEffect, useState } from 'react';
+import { fetchFeatured } from '../api/rest';
 import { formatMoney } from '../lib/format';
 import { ModeIcon, ShieldIcon, ClockIcon, CheckIcon } from '../components/icons';
 import type { Offer, SearchCriteria } from '../types/domain';
@@ -11,7 +12,16 @@ const HIGHLIGHTS = [
 ];
 
 export default function Home({ onSearch }: { onSearch: (criteria: SearchCriteria) => void }) {
-  const featured = pickFeatured();
+  const [featured, setFeatured] = useState<Offer[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    fetchFeatured()
+      .then((list) => !cancelled && setFeatured(list))
+      .catch(() => !cancelled && setFeatured([]));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <div>
@@ -55,11 +65,12 @@ export default function Home({ onSearch }: { onSearch: (criteria: SearchCriteria
         </div>
       </section>
 
+      {featured.length > 0 && (
       <section className="mx-auto max-w-7xl px-4 pb-16 sm:px-6">
         <div className="mb-5 flex items-end justify-between">
           <div>
-            <h2 className="text-xl font-extrabold text-navy-950">Popular right now</h2>
-            <p className="text-sm text-slate-500">Trending across all four modes this week</p>
+            <h2 className="text-xl font-extrabold text-navy-950">Coming up</h2>
+            <p className="text-sm text-slate-500">Upcoming departures and events</p>
           </div>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -93,21 +104,7 @@ export default function Home({ onSearch }: { onSearch: (criteria: SearchCriteria
           ))}
         </div>
       </section>
+      )}
     </div>
   );
-}
-
-function pickFeatured(): Offer[] {
-  const seen = new Set<string>();
-  const out: Offer[] = [];
-  for (const o of OFFERS) {
-    if (seen.has(o.mode)) continue;
-    seen.add(o.mode);
-    out.push(o);
-  }
-  for (const o of OFFERS) {
-    if (out.length >= 4) break;
-    if (!out.includes(o)) out.push(o);
-  }
-  return out.slice(0, 4);
 }

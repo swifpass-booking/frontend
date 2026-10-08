@@ -1,7 +1,8 @@
 import { useEffect, useState, type SVGProps } from 'react';
 import { adminBookings, adminOccurrences, adminStats, adminUsers } from '../api/rest';
 import { formatMoney, formatDate, formatTime } from '../lib/format';
-import { ModeIcon, UsersIcon, TicketIcon, CalendarIcon, ClockIcon } from '../components/icons';
+import { ModeIcon, UsersIcon, TicketIcon, CalendarIcon, ClockIcon, MapPinIcon } from '../components/icons';
+import LiveMap from '../components/map/LiveMap';
 import type { AuthUser } from '../types/auth';
 import type { AdminBookingRow, AdminDashboardData, AdminOccurrenceRow, AdminUserRow } from '../types/admin';
 import type { TravelMode } from '../types/domain';
@@ -15,6 +16,7 @@ const OCCURRENCE_STATUS_STYLE: Record<string, string> = {
 };
 
 const BOOKING_STATUS_STYLE: Record<string, string> = {
+  pending_payment: 'bg-amber-100 text-amber-700',
   confirmed: 'bg-emerald-100 text-emerald-700',
   cancelled: 'bg-red-100 text-red-700',
   refunded: 'bg-slate-100 text-slate-600',
@@ -238,25 +240,61 @@ function UsersTable({ rows }: { rows: AdminUserRow[] }) {
   );
 }
 
-interface AdminDashboardProps {
-  user: AuthUser | null;
-  token: string | null;
-  onBack: () => void;
-  onSignIn: () => void;
+type Section = 'overview' | 'bookings' | 'trips' | 'users' | 'fleet';
+
+const SECTIONS: { key: Section; label: string; icon: (props: SVGProps<SVGSVGElement>) => JSX.Element }[] = [
+  { key: 'overview', label: 'Overview', icon: ClockIcon },
+  { key: 'bookings', label: 'Bookings', icon: TicketIcon },
+  { key: 'trips', label: 'Trips & events', icon: CalendarIcon },
+  { key: 'fleet', label: 'Live fleet', icon: MapPinIcon },
+  { key: 'users', label: 'Users', icon: UsersIcon },
+];
+
+function FleetView({ rows }: { rows: AdminOccurrenceRow[] }) {
+  const vehicles = rows.filter((o) => o.mode !== 'event' && o.status === 'scheduled');
+  const [selected, setSelected] = useState<string | null>(vehicles[0]?.id ?? null);
+  return (
+    <div className="grid gap-6 lg:grid-cols-[300px_1fr]">
+      <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-card">
+        <h2 className="px-2 pb-2 pt-1 text-base font-extrabold text-navy-950">Vehicles</h2>
+        {vehicles.length === 0 && <p className="px-2 py-3 text-sm text-slate-400">No scheduled vehicles.</p>}
+        <div className="flex max-h-[28rem] flex-col gap-1 overflow-y-auto">
+          {vehicles.map((o) => (
+            <button
+              key={o.id}
+              onClick={() => setSelected(o.id)}
+              className={`flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition ${selected === o.id ? 'bg-brand-blue/10' : 'hover:bg-slate-50'}`}
+            >
+              <ModeIcon mode={o.mode} className="h-4 w-4 shrink-0 text-navy-800" width={16} height={16} />
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-semibold text-navy-950">{o.title}</span>
+                <span className="block text-xs text-slate-400">
+                  {formatDate(o.departsAt)} · {formatTime(o.departsAt)} · {o.providerName}
+                </span>
+              </span>
+            </button>
+          ))}
+        </div>
+      </section>
+      <div>{selected ? <LiveMap key={selected} occurrenceId={selected} height={440} /> : <p className="text-sm text-slate-400">Select a vehicle.</p>}</div>
+    </div>
+  );
 }
 
-export default function AdminDashboard({ user, token, onBack, onSignIn }: AdminDashboardProps) {
+interface AdminAppProps {
+  user: AuthUser;
+  token: string | null;
+  onSignOut: () => void;
+}
+
+/** The admin's own app: sidebar dashboard, separate from the traveller booking site. */
+export default function AdminApp({ user, token, onSignOut }: AdminAppProps) {
   const [data, setData] = useState<AdminDashboardData | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
-
-  const isAdmin = user?.role === 'admin';
+  const [section, setSection] = useState<Section>('overview');
 
   useEffect(() => {
-    if (!isAdmin) {
-      setLoading(false);
-      return;
-    }
     let cancelled = false;
     setLoading(true);
     Promise.all([adminStats(token), adminBookings(token), adminOccurrences(token), adminUsers(token)])
@@ -269,58 +307,86 @@ export default function AdminDashboard({ user, token, onBack, onSignIn }: AdminD
     return () => {
       cancelled = true;
     };
-  }, [isAdmin, token]);
+  }, [token]);
 
-  if (!isAdmin) {
-    return (
-      <div className="mx-auto max-w-md px-4 py-24 text-center">
-        <p className="text-lg font-extrabold text-navy-950">Admin access required</p>
-        <p className="mt-2 text-sm text-slate-500">
-          {user ? "Your account doesn't have admin access." : 'Sign in with an admin account to view this page.'}
-        </p>
-        <button
-          onClick={user ? onBack : onSignIn}
-          className="mt-5 rounded-xl bg-brand-blue px-5 py-2.5 text-sm font-bold text-white hover:bg-blue-700"
-        >
-          {user ? 'Back to booking site' : 'Sign in'}
-        </button>
-      </div>
-    );
-  }
+  const title = SECTIONS.find((s) => s.key === section)?.label ?? '';
 
   return (
-    <div>
-      <div className="border-b border-navy-800 bg-navy-950 px-4 py-2.5 sm:px-6">
-        <button onClick={onBack} className="text-sm font-semibold text-navy-100/80 hover:text-white">
-          ← Back to booking site
-        </button>
-      </div>
+    <div className="flex min-h-screen bg-slate-50 font-sans text-navy-950">
+      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col bg-navy-950 p-4 text-white md:flex">
+        <div className="mb-8 flex items-center gap-2 px-2 pt-1 text-lg font-extrabold tracking-tight">
+          <span className="grid h-8 w-8 place-items-center rounded-lg bg-brand-blue">
+            <TicketIcon className="h-4 w-4" width={18} height={18} />
+          </span>
+          Swiftpass <span className="text-xs font-semibold text-brand-amber">Admin</span>
+        </div>
+        <nav className="flex flex-1 flex-col gap-1">
+          {SECTIONS.map(({ key, label, icon: Icon }) => (
+            <button
+              key={key}
+              onClick={() => setSection(key)}
+              className={`flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm font-semibold transition ${
+                section === key ? 'bg-white/10 text-white' : 'text-navy-100/70 hover:bg-white/5 hover:text-white'
+              }`}
+            >
+              <Icon className="h-4 w-4" width={16} height={16} />
+              {label}
+            </button>
+          ))}
+        </nav>
+        <div className="border-t border-white/10 pt-3">
+          <p className="truncate px-2 text-sm font-semibold">{user.fullName}</p>
+          <p className="truncate px-2 text-xs text-navy-100/60">{user.email || user.phoneE164}</p>
+          <button onClick={onSignOut} className="mt-2 w-full rounded-lg px-3 py-2 text-left text-sm font-semibold text-navy-100/80 hover:bg-white/10 hover:text-white">
+            Sign out
+          </button>
+        </div>
+      </aside>
 
-      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-        <h1 className="mb-6 text-xl font-extrabold text-navy-950">Admin dashboard</h1>
+      <div className="min-w-0 flex-1">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3 md:hidden">
+          <span className="font-extrabold">Swiftpass Admin</span>
+          <button onClick={onSignOut} className="text-sm font-semibold text-brand-blue">
+            Sign out
+          </button>
+        </div>
+        <div className="flex gap-1 overflow-x-auto border-b border-slate-200 bg-white px-3 py-2 md:hidden">
+          {SECTIONS.map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setSection(key)}
+              className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-semibold ${section === key ? 'bg-navy-950 text-white' : 'text-slate-600'}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
 
-        {loading && <p className="text-sm text-slate-400">Loading…</p>}
-        {error && <p className="text-sm font-semibold text-red-600">{error}</p>}
+        <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+          <h1 className="mb-6 text-xl font-extrabold text-navy-950">{title}</h1>
 
-        {data && (
-          <div className="flex flex-col gap-6">
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <StatTile icon={UsersIcon} label="Users" value={data.stats.totalUsers} />
-              <StatTile icon={TicketIcon} label="Bookings" value={data.stats.totalBookings} />
-              <StatTile icon={ClockIcon} label="Revenue" value={formatMoney(data.stats.totalRevenue)} sub="confirmed bookings" />
-              <StatTile icon={CalendarIcon} label="Upcoming departures" value={data.stats.upcomingOccurrences} />
+          {loading && <p className="text-sm text-slate-400">Loading…</p>}
+          {error && <p className="text-sm font-semibold text-red-600">{error}</p>}
+
+          {data && section === 'overview' && (
+            <div className="flex flex-col gap-6">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <StatTile icon={UsersIcon} label="Users" value={data.stats.totalUsers} />
+                <StatTile icon={TicketIcon} label="Bookings" value={data.stats.totalBookings} />
+                <StatTile icon={ClockIcon} label="Revenue" value={formatMoney(data.stats.totalRevenue)} sub="confirmed bookings" />
+                <StatTile icon={CalendarIcon} label="Upcoming departures" value={data.stats.upcomingOccurrences} />
+              </div>
+              <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
+                <BookingsByMode rows={data.stats.bookingsByMode} />
+                <RecentBookings rows={data.stats.recentBookings} />
+              </div>
             </div>
-
-            <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
-              <BookingsByMode rows={data.stats.bookingsByMode} />
-              <RecentBookings rows={data.stats.recentBookings} />
-            </div>
-
-            <BookingsTable rows={data.bookings} />
-            <OccurrencesTable rows={data.occurrences} />
-            <UsersTable rows={data.users} />
-          </div>
-        )}
+          )}
+          {data && section === 'bookings' && <BookingsTable rows={data.bookings} />}
+          {data && section === 'trips' && <OccurrencesTable rows={data.occurrences} />}
+          {data && section === 'fleet' && <FleetView rows={data.occurrences} />}
+          {data && section === 'users' && <UsersTable rows={data.users} />}
+        </main>
       </div>
     </div>
   );

@@ -1,18 +1,21 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import Nav from './components/layout/Nav';
 import Footer from './components/layout/Footer';
 import AuthModal from './components/auth/AuthModal';
-import VoiceConcierge from './components/agent/VoiceConcierge';
+import VoiceMode from './components/agent/VoiceMode';
+import { VoiceProvider } from './context/VoiceContext';
 import Home from './pages/Home';
+import PaymentReturn from './pages/PaymentReturn';
 import Results from './pages/Results';
 import Checkout from './pages/Checkout';
 import Confirmation from './pages/Confirmation';
-import Ops from './pages/Ops';
-import AdminDashboard from './pages/AdminDashboard';
+import AdminApp from './pages/AdminDashboard';
+import GateBoard from './pages/GateBoard';
+import StaffLogin from './pages/StaffLogin';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import type { BookingDraft, Offer, Page, SearchCriteria } from './types/domain';
 
-function AppShell() {
+function TravellerApp() {
   const [page, setPage] = useState<Page>('home');
   const [criteria, setCriteria] = useState<SearchCriteria | null>(null);
   const [selectedOffer, setSelectedOffer] = useState<Offer | null>(null);
@@ -20,6 +23,11 @@ function AppShell() {
   const [booking, setBooking] = useState<BookingDraft | null>(null);
   const [authOpen, setAuthOpen] = useState(false);
   const { user, token } = useAuth();
+  // eSewa / Khalti send the browser back to /payment/<provider>?... — confirm it before anything else.
+  const [returning, setReturning] = useState<'esewa' | 'khalti' | null>(() => {
+    const m = window.location.pathname.match(/^\/payment\/(esewa|khalti)$/);
+    return m ? (m[1] as 'esewa' | 'khalti') : null;
+  });
 
   function handleSearch(c: SearchCriteria) {
     setCriteria(c);
@@ -34,6 +42,12 @@ function AppShell() {
     setPage('checkout');
     window.scrollTo({ top: 0, behavior: 'instant' });
   }
+
+  const handlePaid = useCallback((details: BookingDraft) => {
+    setBooking(details);
+    setReturning(null);
+    setPage('confirmation');
+  }, []);
 
   function handleConfirm(details: BookingDraft) {
     setBooking(details);
@@ -50,6 +64,7 @@ function AppShell() {
   }
 
   return (
+    <VoiceProvider token={token} onReviewOffer={handleSelect} onSearch={handleSearch}>
     <div className="min-h-screen bg-slate-50 font-sans text-navy-950">
       <Nav
         page={page}
@@ -58,7 +73,9 @@ function AppShell() {
         onSignIn={() => setAuthOpen(true)}
       />
 
-      {page === 'home' && <Home onSearch={handleSearch} />}
+      {returning && <PaymentReturn provider={returning} onConfirmed={handlePaid} onBack={() => setReturning(null)} />}
+
+      {!returning && page === 'home' && <Home onSearch={handleSearch} />}
 
       {page === 'results' && criteria && (
         <Results criteria={criteria} onSearch={handleSearch} onSelect={handleSelect} />
@@ -77,27 +94,44 @@ function AppShell() {
 
       {page === 'confirmation' && <Confirmation booking={booking} onDone={goHome} />}
 
-      {page === 'ops' && (
-        <Ops user={user} token={token} onBack={goHome} onSignIn={() => setAuthOpen(true)} />
-      )}
-
-      {page === 'admin' && (
-        <AdminDashboard user={user} token={token} onBack={goHome} onSignIn={() => setAuthOpen(true)} />
-      )}
-
-      {page !== 'ops' && page !== 'admin' && <Footer />}
+      <Footer />
 
       {authOpen && <AuthModal onClose={() => setAuthOpen(false)} />}
 
-      <VoiceConcierge token={token} onReviewOffer={handleSelect} />
+      <VoiceMode />
     </div>
+    </VoiceProvider>
   );
+}
+
+/** Which app you get depends on who you are: admins and gate/operator staff never see the traveller site. */
+function RoleRouter() {
+  const { user, token, ready, logout } = useAuth();
+  const path = window.location.pathname;
+
+  if (!ready) return <div className="min-h-screen bg-slate-50" />;
+
+  if (user?.role === 'admin') return <AdminApp user={user} token={token} onSignOut={logout} />;
+
+  if (user?.role === 'operator_staff' || user?.role === 'gate_agent') {
+    return (
+      <div className="min-h-screen bg-slate-50">
+        <GateBoard user={user} token={token} onBack={logout} onSignIn={() => undefined} backLabel="Sign out" />
+      </div>
+    );
+  }
+
+  // Not staff: /admin and /ops are sign-in doors, not menu items.
+  if (!user && (path.startsWith('/admin') || path.startsWith('/ops'))) {
+    return <StaffLogin area={path.startsWith('/admin') ? 'admin' : 'ops'} />;
+  }
+  return <TravellerApp />;
 }
 
 export default function App() {
   return (
     <AuthProvider>
-      <AppShell />
+      <RoleRouter />
     </AuthProvider>
   );
 }

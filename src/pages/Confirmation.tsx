@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import LiveMap from '../components/map/LiveMap';
 import QRCode from 'qrcode';
 import { formatMoney, formatTime, formatDate } from '../lib/format';
 import { CheckIcon, ModeIcon } from '../components/icons';
@@ -114,6 +115,7 @@ function triggerDownload(dataUrl: string, filename: string) {
 export default function Confirmation({ booking, onDone }: { booking: BookingDraft | null; onDone: () => void }) {
   const fallbackRef = useMemo(reference, []);
   const ref = booking?.reference || fallbackRef;
+  const [tracking, setTracking] = useState(false);
 
   if (!booking) {
     return (
@@ -249,7 +251,21 @@ export default function Confirmation({ booking, onDone }: { booking: BookingDraf
         >
           Download ticket
         </button>
+        {offer.mode !== 'event' && (
+          <button
+            onClick={() => setTracking((v) => !v)}
+            className="rounded-xl border border-slate-200 px-6 py-3 text-sm font-bold text-navy-950 transition hover:bg-slate-50"
+          >
+            {tracking ? 'Hide live location' : 'Track live location'}
+          </button>
+        )}
       </div>
+
+      {tracking && (
+        <div className="mt-6">
+          <LiveMap occurrenceId={offer.occurrenceId} onClose={() => setTracking(false)} />
+        </div>
+      )}
     </div>
   );
 }

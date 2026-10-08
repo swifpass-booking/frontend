@@ -1,7 +1,7 @@
 /** Thin fetch wrapper for the real (non-mock) Django backend: auth, bookings, admin, carts.
  *  The voice concierge is a separate service — see api/voiceAgent.ts. */
 import type { AdminBookingRow, AdminOccurrenceRow, AdminStats, AdminUserRow } from '../types/admin';
-import type { BookingDraft, Money, Offer, PaymentMethod, Place, Ticket, Zone } from '../types/domain';
+import type { BookingDraft, Money, Offer, PaymentMethod, Place, SearchCriteria, Ticket, Zone } from '../types/domain';
 import type { ScanCounts, ScanEvent, ScanVerdict } from '../types/gate';
 
 interface RequestOptions {
@@ -38,9 +38,19 @@ export interface CreateBookingPayload {
   total: Money;
 }
 
+/** Redirect instructions for eSewa/Khalti — present when the booking is pending payment. */
+export interface PaymentGateway {
+  provider: 'esewa' | 'khalti';
+  method: 'GET' | 'POST';
+  url: string;
+  fields?: Record<string, string>;
+}
+
 export interface CreateBookingResponse {
   reference: string;
+  status?: string;
   tickets: Ticket[];
+  gateway?: PaymentGateway;
 }
 
 /** Pass the same `idempotencyKey` when retrying so a repeat tap never books twice. */
@@ -146,3 +156,48 @@ export interface RawCart {
 }
 
 export const getCart = (cartId: string, token: string | null) => request<RawCart>(`/carts/${cartId}`, { token });
+
+/** Real backend search (POST /v1/search) — the same endpoint the voice agent's search_offers tool calls. */
+export async function searchOffersApi(c: SearchCriteria): Promise<Offer[]> {
+  const isEvent = c.mode === 'event';
+  const res = await request<{ offers: RawOffer[] }>('/search', {
+    method: 'POST',
+    body: {
+      legs: [{ from: isEvent ? '' : c.from || '', to: isEvent ? c.city || '' : c.to || '', date: c.date }],
+      passengers: { adults: c.passengers || 1, children: 0, infants: 0 },
+      modes: [c.mode],
+    },
+  });
+  return res.offers.map(toOffer);
+}
+
+/** Cities that have scheduled trips/events for a mode — fills the search form's pickers. */
+export const fetchCities = (mode: Offer['mode']) =>
+  request<{ cities: string[] }>(`/places?mode=${encodeURIComponent(mode)}`).then((r) => r.cities);
+
+/** Upcoming offers for the home page highlights, straight from the database. */
+export const fetchFeatured = () => request<{ offers: RawOffer[] }>('/featured').then((r) => r.offers.map(toOffer));
+
+/** Ask the backend to confirm a gateway payment (it re-checks with eSewa/Khalti before issuing tickets). */
+export const verifyPayment = (params: { provider: 'esewa' | 'khalti'; data?: string; pidx?: string; failed?: boolean; ref?: string }) =>
+  request<CreateBookingResponse>('/payments/verify', { method: 'POST', body: params });
+
+export interface Tracking {
+  occurrenceId: string;
+  mode: Offer['mode'];
+  title: string;
+  departsAt: string;
+  arrivesAt: string | null;
+  origin: { name: string; city: string; lat: number; lng: number };
+  destination: { name: string; city: string; lat: number; lng: number };
+  position: { lat: number; lng: number; speedKmh: number | null; heading: number | null; updatedAt: string; source: 'gps' | 'simulated' };
+  progress: number;
+  status: 'not_started' | 'en_route' | 'arrived';
+  etaMinutes: number | null;
+  totalKm: number;
+  /** Polyline [lat, lng][] — follows the road for buses, a straight line otherwise. */
+  route: [number, number][];
+  routeSource: 'road' | 'straight';
+}
+
+export const getTracking = (occurrenceId: string) => request<Tracking>(`/occurrences/${encodeURIComponent(occurrenceId)}/tracking`);
