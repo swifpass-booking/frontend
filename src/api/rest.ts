@@ -8,12 +8,14 @@ interface RequestOptions {
   method?: string;
   body?: unknown;
   token?: string | null;
+  headers?: Record<string, string>;
 }
 
-async function request<T>(path: string, { method = 'GET', body, token }: RequestOptions = {}): Promise<T> {
+async function request<T>(path: string, { method = 'GET', body, token, headers: extra }: RequestOptions = {}): Promise<T> {
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   if (token) headers['Authorization'] = `Bearer ${token}`;
+  Object.assign(headers, extra);
 
   const res = await fetch(`/v1${path}`, {
     method,
@@ -41,8 +43,14 @@ export interface CreateBookingResponse {
   tickets: Ticket[];
 }
 
-export const createBooking = (payload: CreateBookingPayload, token: string | null) =>
-  request<CreateBookingResponse>('/bookings', { method: 'POST', body: payload, token });
+/** Pass the same `idempotencyKey` when retrying so a repeat tap never books twice. */
+export const createBooking = (payload: CreateBookingPayload, token: string | null, idempotencyKey?: string) =>
+  request<CreateBookingResponse>('/bookings', {
+    method: 'POST',
+    body: payload,
+    token,
+    headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
+  });
 
 export const adminStats = (token: string | null) => request<AdminStats>('/admin/stats', { token });
 export const adminUsers = (token: string | null) => request<{ users: AdminUserRow[] }>('/admin/users', { token });

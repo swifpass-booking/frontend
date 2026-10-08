@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { formatMoney, formatTime, formatDate } from '../lib/format';
 import { ModeIcon, ShieldIcon } from '../components/icons';
 import { createBooking } from '../api/rest';
@@ -56,11 +56,14 @@ export default function Checkout({ offer, passengers, account, token, onBack, on
   const subtotal = offer.price.amount * passengers;
   const total = { amount: subtotal + fees, currency: offer.price.currency };
 
+  // One key per checkout screen: a double-tap or retry returns the same booking.
+  const idempotencyKey = useRef(crypto.randomUUID());
+
   async function handlePay() {
     setError('');
     setSubmitting(true);
     try {
-      const booking = await createBooking({ offer: offer as Offer, names, phone, email, payment, total }, token);
+      const booking = await createBooking({ offer: offer as Offer, names, phone, email, payment, total }, token, idempotencyKey.current);
       onConfirm({ offer: offer as Offer, passengers, names, phone, email, payment, total, ...booking });
     } catch (err) {
       setError((err as Error).message || 'Payment could not be confirmed. Try again.');

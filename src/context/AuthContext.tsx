@@ -65,9 +65,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const logout = useCallback(() => {
+    // Revoke server-side too, so a copied token stops working.
+    if (session) {
+      fetch('/v1/auth/logout', { method: 'POST', headers: { Authorization: `Bearer ${session.token}` } }).catch(() => {});
+    }
     localStorage.removeItem(STORAGE_KEY);
     setSession(null);
-  }, []);
+  }, [session]);
 
   const value: AuthContextValue = {
     user: session?.user ?? null,
