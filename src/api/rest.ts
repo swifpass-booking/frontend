@@ -1,7 +1,7 @@
 /** Thin fetch wrapper for the real (non-mock) Django backend: auth, bookings, admin, carts.
  *  The voice concierge is a separate service — see api/voiceAgent.ts. */
 import type { AdminBookingRow, AdminOccurrenceRow, AdminStats, AdminUserRow } from '../types/admin';
-import type { BookingDraft, Money, Offer, PaymentMethod, Place, SearchCriteria, Ticket, Zone } from '../types/domain';
+import type { BookingDraft, Money, Offer, PaymentMethod, Place, SearchCriteria, SeatMap, Ticket, Zone } from '../types/domain';
 import type { ScanCounts, ScanEvent, ScanVerdict } from '../types/gate';
 
 interface RequestOptions {
@@ -36,6 +36,8 @@ export interface CreateBookingPayload {
   email: string;
   payment: PaymentMethod;
   total: Money;
+  /** One seat label per traveller, in traveller order. Omit for general admission. */
+  seats?: string[];
 }
 
 /** Redirect instructions for eSewa/Khalti — present when the booking is pending payment. */
@@ -156,6 +158,9 @@ export interface RawCart {
 }
 
 export const getCart = (cartId: string, token: string | null) => request<RawCart>(`/carts/${cartId}`, { token });
+
+export const getSeatMap = (occurrenceId: string) =>
+  request<SeatMap>(`/occurrences/${encodeURIComponent(occurrenceId)}/seatmap`);
 
 /** Real backend search (POST /v1/search) — the same endpoint the voice agent's search_offers tool calls. */
 export async function searchOffersApi(c: SearchCriteria): Promise<Offer[]> {

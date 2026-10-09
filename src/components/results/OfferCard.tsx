@@ -1,15 +1,26 @@
+import { useState } from 'react';
+import SeatPicker from '../seats/SeatPicker';
 import { formatMoney, formatTime, formatDate, formatDuration } from '../../lib/format';
 import { ModeIcon, ClockIcon, ChevronRightIcon } from '../icons';
-import type { Offer, TravelMode } from '../../types/domain';
+import type { Offer, SeatPick, TravelMode } from '../../types/domain';
 
 const MODE_LABEL: Record<TravelMode, string> = { air: 'Flight', bus: 'Bus', rail: 'Train', event: 'Event' };
 
-export default function OfferCard({ offer, onSelect }: { offer: Offer; onSelect: (offer: Offer) => void }) {
+interface OfferCardProps {
+  offer: Offer;
+  passengers?: number;
+  onSelect: (offer: Offer, passengers?: number, seats?: SeatPick[]) => void;
+}
+
+export default function OfferCard({ offer, passengers = 1, onSelect }: OfferCardProps) {
+  const [picking, setPicking] = useState(false);
+  const seated = offer.hasReservedSeating;
   const isRoute = offer.mode !== 'event';
   const soldPct = Math.round(((offer.capacity - offer.seatsAvailable) / offer.capacity) * 100);
   const almostGone = offer.seatsAvailable > 0 && offer.seatsAvailable <= Math.max(4, Math.round(offer.capacity * 0.08));
 
   return (
+    <div className="flex flex-col gap-2">
     <div className="group flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-card transition hover:-translate-y-0.5 hover:shadow-popover sm:flex-row sm:items-center sm:p-5">
       <div className="flex items-start gap-3 sm:w-64 sm:shrink-0">
         <span className="mt-0.5 grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-navy-950/5 text-navy-800">
@@ -59,10 +70,10 @@ export default function OfferCard({ offer, onSelect }: { offer: Offer; onSelect:
             <p className="text-xs text-slate-400">per traveller</p>
           </div>
           <button
-            onClick={() => onSelect(offer)}
+            onClick={() => (seated ? setPicking((v) => !v) : onSelect(offer, passengers))}
             className="rounded-lg bg-brand-blue px-5 py-2.5 text-sm font-bold text-white transition hover:bg-blue-700"
           >
-            Select
+            {seated ? (picking ? 'Hide seats' : 'Choose seats') : 'Select'}
           </button>
         </div>
       </div>
@@ -72,6 +83,15 @@ export default function OfferCard({ offer, onSelect }: { offer: Offer; onSelect:
           Only {offer.seatsAvailable} left · {soldPct}% booked
         </span>
       )}
+    </div>
+    {picking && (
+      <SeatPicker
+        offer={offer}
+        passengers={passengers}
+        onClose={() => setPicking(false)}
+        onConfirm={(seats) => onSelect(offer, passengers, seats)}
+      />
+    )}
     </div>
   );
 }

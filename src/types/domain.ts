@@ -58,6 +58,37 @@ export interface Offer {
   status: string;
 }
 
+export interface SeatPick {
+  label: string;
+  zoneCode: string;
+  zoneLabel: string;
+  price: Money;
+  fee: Money;
+}
+
+export interface Seat {
+  label: string;
+  col: string;
+  attributes: string[];
+  state: 'available' | 'sold' | 'held';
+}
+
+export interface SeatSection {
+  zoneId: string;
+  code: string;
+  label: string;
+  price: Money;
+  fee: Money;
+  rows: { row: string; seats: (Seat | null)[] }[];
+}
+
+export interface SeatMap {
+  occurrenceId: string;
+  mode: TravelMode;
+  isReservedSeating: boolean;
+  sections: SeatSection[];
+}
+
 export interface SearchCriteria {
   mode: TravelMode;
   from?: string;
@@ -73,6 +104,7 @@ export interface Ticket {
   ticketId: string;
   passengerName: string;
   code: string;
+  seatLabel?: string | null;
 }
 
 export interface BookingDraft {
@@ -83,6 +115,7 @@ export interface BookingDraft {
   email: string;
   payment: PaymentMethod;
   total: Money;
+  seats?: SeatPick[];
   reference?: string;
   tickets?: Ticket[];
 }

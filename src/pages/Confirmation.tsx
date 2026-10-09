@@ -78,6 +78,14 @@ async function ticketToDataUrl(ticket: Ticket, meta: TicketMeta): Promise<string
   ctx.font = '16px sans-serif';
   ctx.fillStyle = '#0A1730';
   ctx.fillText(ticket.passengerName, 24, 194);
+  if (ticket.seatLabel) {
+    ctx.font = 'bold 12px sans-serif';
+    ctx.fillStyle = '#94A3B8';
+    ctx.fillText('SEAT', 260, 172);
+    ctx.font = 'bold 16px sans-serif';
+    ctx.fillStyle = '#0A1730';
+    ctx.fillText(ticket.seatLabel, 260, 194);
+  }
 
   ctx.font = 'bold 12px sans-serif';
   ctx.fillStyle = '#94A3B8';
@@ -208,6 +216,11 @@ export default function Confirmation({ booking, onDone }: { booking: BookingDraf
                 {names.map((n, i) => (
                   <li key={i} className="text-sm font-medium text-navy-950">
                     {n || `Traveller ${i + 1}`}
+                    {(booking.seats?.[i]?.label ?? tickets?.[i]?.seatLabel) && (
+                      <span className="ml-2 rounded bg-brand-blue/10 px-1.5 py-0.5 text-xs font-bold text-brand-blue">
+                        Seat {booking.seats?.[i]?.label ?? tickets?.[i]?.seatLabel}
+                      </span>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -225,6 +238,7 @@ export default function Confirmation({ booking, onDone }: { booking: BookingDraf
                 <div key={t.ticketId} className="flex flex-col items-center gap-1.5">
                   <TicketQr code={t.code} />
                   <p className="text-center text-xs font-bold text-navy-950">{t.passengerName}</p>
+                  {t.seatLabel && <p className="text-center text-xs font-semibold text-brand-blue">Seat {t.seatLabel}</p>}
                   <p className="text-center text-[11px] text-slate-400">Show this at the gate</p>
                 </div>
               ))

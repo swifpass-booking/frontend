@@ -13,13 +13,14 @@ import AdminApp from './pages/AdminDashboard';
 import GateBoard from './pages/GateBoard';
 import StaffLogin from './pages/StaffLogin';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import type { BookingDraft, Offer, Page, SearchCriteria } from './types/domain';
+import type { BookingDraft, Offer, Page, SearchCriteria, SeatPick } from './types/domain';
 
 function TravellerApp() {
   const [page, setPage] = useState<Page>('home');
   const [criteria, setCriteria] = useState<SearchCriteria | null>(null);
   const [selectedOffer, setSelectedOffer] = useState<Offer | null>(null);
   const [passengers, setPassengers] = useState(1);
+  const [selectedSeats, setSelectedSeats] = useState<SeatPick[]>([]);
   const [booking, setBooking] = useState<BookingDraft | null>(null);
   const [authOpen, setAuthOpen] = useState(false);
   const { user, token } = useAuth();
@@ -36,8 +37,9 @@ function TravellerApp() {
     window.scrollTo({ top: 0, behavior: 'instant' });
   }
 
-  function handleSelect(offer: Offer, offerPassengers?: number) {
+  function handleSelect(offer: Offer, offerPassengers?: number, seats?: SeatPick[]) {
     setSelectedOffer(offer);
+    setSelectedSeats(seats ?? []);
     if (offerPassengers) setPassengers(offerPassengers);
     setPage('checkout');
     window.scrollTo({ top: 0, behavior: 'instant' });
@@ -85,6 +87,7 @@ function TravellerApp() {
         <Checkout
           offer={selectedOffer}
           passengers={passengers}
+          seats={selectedSeats}
           account={user}
           token={token}
           onBack={() => setPage(criteria ? 'results' : 'home')}

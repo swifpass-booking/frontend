@@ -4,7 +4,7 @@ import { ModeIcon, ShieldIcon } from '../components/icons';
 import { createBooking } from '../api/rest';
 import type { AuthUser } from '../types/auth';
 import { redirectToGateway, savePendingCheckout } from '../lib/payment';
-import type { BookingDraft, Offer, PaymentMethod } from '../types/domain';
+import type { BookingDraft, Offer, PaymentMethod, SeatPick } from '../types/domain';
 
 const PAYMENT_METHODS: { key: PaymentMethod; label: string }[] = [
   { key: 'esewa', label: 'eSewa' },
@@ -16,13 +16,14 @@ const PAYMENT_METHODS: { key: PaymentMethod; label: string }[] = [
 interface CheckoutProps {
   offer: Offer | null;
   passengers: number;
+  seats: SeatPick[];
   account: AuthUser | null;
   token: string | null;
   onBack: () => void;
   onConfirm: (booking: BookingDraft) => void;
 }
 
-export default function Checkout({ offer, passengers, account, token, onBack, onConfirm }: CheckoutProps) {
+export default function Checkout({ offer, passengers, seats, account, token, onBack, onConfirm }: CheckoutProps) {
   const [names, setNames] = useState<string[]>(
     Array.from({ length: passengers }, (_, i) => (i === 0 ? account?.fullName || '' : ''))
   );
@@ -53,8 +54,10 @@ export default function Checkout({ offer, passengers, account, token, onBack, on
     );
   }
 
-  const fees = offer.fees.amount * passengers;
-  const subtotal = offer.price.amount * passengers;
+  // Seat prices come from the zone each seat sits in (business vs economy, gold vs standard).
+  const seated = seats.length === passengers;
+  const fees = seated ? seats.reduce((n, s) => n + s.fee.amount, 0) : offer.fees.amount * passengers;
+  const subtotal = seated ? seats.reduce((n, s) => n + s.price.amount, 0) : offer.price.amount * passengers;
   const total = { amount: subtotal + fees, currency: offer.price.currency };
 
   // One key per checkout screen: a double-tap or retry returns the same booking.
@@ -64,14 +67,14 @@ export default function Checkout({ offer, passengers, account, token, onBack, on
     setError('');
     setSubmitting(true);
     try {
-      const booking = await createBooking({ offer: offer as Offer, names, phone, email, payment, total }, token, idempotencyKey.current);
+      const booking = await createBooking({ offer: offer as Offer, names, phone, email, payment, total, seats: seated ? seats.map((s) => s.label) : undefined }, token, idempotencyKey.current);
       if (booking.gateway) {
         // eSewa / Khalti: nothing is booked until the gateway confirms — go pay, come back via /payment/<provider>.
-        savePendingCheckout({ offer: offer as Offer, passengers, names, phone, email, payment, total, reference: booking.reference });
+        savePendingCheckout({ offer: offer as Offer, passengers, seats, names, phone, email, payment, total, reference: booking.reference });
         redirectToGateway(booking.gateway);
         return;
       }
-      onConfirm({ offer: offer as Offer, passengers, names, phone, email, payment, total, ...booking });
+      onConfirm({ offer: offer as Offer, passengers, seats, names, phone, email, payment, total, ...booking });
     } catch (err) {
       setError((err as Error).message || 'Payment could not be confirmed. Try again.');
     } finally {
@@ -93,7 +96,7 @@ export default function Checkout({ offer, passengers, account, token, onBack, on
               {names.map((n, i) => (
                 <label key={i} className="block">
                   <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-400">
-                    Traveller {i + 1} full name {i === 0 && '(lead)'}
+                    Traveller {i + 1} full name {i === 0 && '(lead)'}{seated && ` · Seat ${seats[i].label}`}
                   </span>
                   <input
                     value={n}

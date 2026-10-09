@@ -3,7 +3,7 @@ import SearchWidget from '../components/search/SearchWidget';
 import OfferCard from '../components/results/OfferCard';
 import { searchOffersApi } from '../api/rest';
 import { ModeIcon } from '../components/icons';
-import type { Offer, SearchCriteria } from '../types/domain';
+import type { Offer, SearchCriteria, SeatPick } from '../types/domain';
 
 const SORTS = [
   { key: 'recommended', label: 'Recommended' },
@@ -16,7 +16,7 @@ type SortKey = (typeof SORTS)[number]['key'];
 interface ResultsProps {
   criteria: SearchCriteria;
   onSearch: (criteria: SearchCriteria) => void;
-  onSelect: (offer: Offer) => void;
+  onSelect: (offer: Offer, passengers?: number, seats?: SeatPick[]) => void;
 }
 
 export default function Results({ criteria, onSearch, onSelect }: ResultsProps) {
@@ -145,7 +145,7 @@ export default function Results({ criteria, onSearch, onSelect }: ResultsProps) 
               </div>
             )}
             {results.map((o) => (
-              <OfferCard key={o.offerId} offer={o} onSelect={onSelect} />
+              <OfferCard key={o.offerId} offer={o} passengers={criteria.passengers || 1} onSelect={onSelect} />
             ))}
           </div>
         </div>
