@@ -8,10 +8,10 @@ import type { Offer, SearchCriteria } from '../types/domain';
 const HIGHLIGHTS = [
   { icon: ShieldIcon, title: 'Tamper-proof tickets', body: 'Every QR is server-signed and device-bound — screenshots and reshares are rejected at the gate.' },
   { icon: ClockIcon, title: 'Under 2-second gate scans', body: 'Offline-capable validation, even when the venue has no signal.' },
-  { icon: CheckIcon, title: 'One checkout, every leg', body: 'Flight, connecting bus and event tickets — paid once, confirmed together.' },
+  { icon: CheckIcon, title: 'One checkout, every leg', body: 'Flights, buses, hotels, resorts, event halls and tickets — one booking, one QR per guest.' },
 ];
 
-export default function Home({ onSearch }: { onSearch: (criteria: SearchCriteria) => void }) {
+export default function Home({ onSearch, onPlan }: { onSearch: (criteria: SearchCriteria) => void; onPlan?: () => void }) {
   const [featured, setFeatured] = useState<Offer[]>([]);
   useEffect(() => {
     let cancelled = false;
@@ -35,7 +35,7 @@ export default function Home({ onSearch }: { onSearch: (criteria: SearchCriteria
         />
         <div className="relative mx-auto max-w-7xl px-4 pb-16 pt-14 sm:px-6 sm:pt-20">
           <p className="mb-3 inline-block rounded-full bg-white/10 px-3 py-1 text-xs font-semibold tracking-wide text-white/80">
-            Flights · Buses · Trains · Events — one booking
+            Flights · Buses · Trains · Events · Hotels · Resorts · Halls — one booking
           </p>
           <h1 className="max-w-2xl text-3xl font-extrabold leading-tight text-white sm:text-5xl">
             Go anywhere in Nepal. <span className="text-brand-amber">Book it once.</span>
@@ -48,6 +48,14 @@ export default function Home({ onSearch }: { onSearch: (criteria: SearchCriteria
           <div className="mt-8">
             <SearchWidget onSearch={onSearch} />
           </div>
+          {onPlan && (
+            <button
+              onClick={onPlan}
+              className="mt-4 rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white ring-1 ring-white/20 transition hover:bg-white/20"
+            >
+              ✨ Not sure where to start? Let the AI planner build your trip
+            </button>
+          )}
         </div>
       </section>
 

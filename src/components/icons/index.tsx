@@ -141,11 +141,30 @@ export function SendIcon(props: IconProps) {
   );
 }
 
+export function BedIcon(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" {...base} {...props}>
+      <path d="M3 18V6M3 14h18v4M21 14v-2a3 3 0 00-3-3h-7v5M7 11.5a1.5 1.5 0 100-.01" />
+    </svg>
+  );
+}
+
+export function BuildingIcon(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" {...base} {...props}>
+      <path d="M4 21V5l8-2v18M12 8h8v13M2 21h20M7.5 9h1M7.5 13h1M7.5 17h1M15.5 12h1M15.5 16h1" />
+    </svg>
+  );
+}
+
 const MODE_ICONS: Record<TravelMode, (props: IconProps) => JSX.Element> = {
   air: PlaneIcon,
   bus: BusIcon,
   rail: TrainIcon,
   event: TicketIcon,
+  hotel: BedIcon,
+  resort: BedIcon,
+  hall: BuildingIcon,
 };
 
 export function ModeIcon({ mode, ...props }: { mode: TravelMode } & IconProps) {

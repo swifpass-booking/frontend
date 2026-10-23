@@ -4,7 +4,10 @@ import { ModeIcon, ShieldIcon } from '../components/icons';
 import { createBooking } from '../api/rest';
 import type { AuthUser } from '../types/auth';
 import { redirectToGateway, savePendingCheckout } from '../lib/payment';
-import type { BookingDraft, Offer, PaymentMethod, SeatPick } from '../types/domain';
+import type { BookingDraft, Offer, PassportDetails, PaymentMethod, SeatPick } from '../types/domain';
+import PassportScanner from '../components/PassportScanner';
+import { emptyPassport, isInternationalFlight, passportProblem } from '../lib/passport';
+import type { ScanResult } from '../lib/passport';
 
 const PAYMENT_METHODS: { key: PaymentMethod; label: string }[] = [
   { key: 'esewa', label: 'eSewa' },
@@ -27,6 +30,13 @@ export default function Checkout({ offer, passengers, seats, account, token, onB
   const [names, setNames] = useState<string[]>(
     Array.from({ length: passengers }, (_, i) => (i === 0 ? account?.fullName || '' : ''))
   );
+  const international = isInternationalFlight(offer);
+  const [passportDetails, setPassportDetails] = useState<PassportDetails[]>(
+    Array.from({ length: passengers }, emptyPassport)
+  );
+  const [scanning, setScanning] = useState<number | null>(null);
+  // Travellers whose scan failed MRZ check digits: OCR likely misread a character.
+  const [unverified, setUnverified] = useState<Record<number, boolean>>({});
   const [phone, setPhone] = useState(account?.phoneE164 || '');
   const [email, setEmail] = useState(account?.email || '');
   const [payment, setPayment] = useState<PaymentMethod>('esewa');
@@ -34,10 +44,31 @@ export default function Checkout({ offer, passengers, seats, account, token, onB
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
-  const canConfirm = useMemo(
-    () => names.every((n) => n.trim().length > 1) && /^\+?\d{7,15}$/.test(phone) && agreed,
-    [names, phone, agreed]
+  const passportErrors = useMemo(
+    () => (international && offer ? passportDetails.map((p) => passportProblem(p, offer.departsAt)) : []),
+    [international, offer, passportDetails]
   );
+
+  const canConfirm = useMemo(
+    () =>
+      names.every((n) => n.trim().length > 1) &&
+      /^\+?\d{7,15}$/.test(phone) &&
+      agreed &&
+      passportErrors.every((e) => e === null),
+    [names, phone, agreed, passportErrors]
+  );
+
+  function updatePassport(i: number, patch: Partial<PassportDetails>) {
+    setPassportDetails((prev) => prev.map((p, idx) => (idx === i ? { ...p, ...patch } : p)));
+    setUnverified((prev) => ({ ...prev, [i]: false }));
+  }
+
+  function applyScan(i: number, result: ScanResult) {
+    if (result.fullName) updateName(i, result.fullName);
+    updatePassport(i, result.passport);
+    setUnverified((prev) => ({ ...prev, [i]: !result.checksumValid }));
+    setScanning(null);
+  }
 
   function updateName(i: number, value: string) {
     setNames((prev) => prev.map((n, idx) => (idx === i ? value : n)));
@@ -67,7 +98,7 @@ export default function Checkout({ offer, passengers, seats, account, token, onB
     setError('');
     setSubmitting(true);
     try {
-      const booking = await createBooking({ offer: offer as Offer, names, phone, email, payment, total, seats: seated ? seats.map((s) => s.label) : undefined }, token, idempotencyKey.current);
+      const booking = await createBooking({ offer: offer as Offer, names, passports: international ? passportDetails : undefined, phone, email, payment, total, seats: seated ? seats.map((s) => s.label) : undefined }, token, idempotencyKey.current);
       if (booking.gateway) {
         // eSewa / Khalti: nothing is booked until the gateway confirms — go pay, come back via /payment/<provider>.
         savePendingCheckout({ offer: offer as Offer, passengers, seats, names, phone, email, payment, total, reference: booking.reference });
@@ -94,7 +125,8 @@ export default function Checkout({ offer, passengers, seats, account, token, onB
             <h2 className="mb-4 text-base font-extrabold text-navy-950">Traveller details</h2>
             <div className="flex flex-col gap-3">
               {names.map((n, i) => (
-                <label key={i} className="block">
+                <div key={i}>
+                  <label className="block">
                   <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-400">
                     Traveller {i + 1} full name {i === 0 && '(lead)'}{seated && ` · Seat ${seats[i].label}`}
                   </span>
@@ -104,7 +136,17 @@ export default function Checkout({ offer, passengers, seats, account, token, onB
                     placeholder="As it appears on ID"
                     className="field-input"
                   />
-                </label>
+                  </label>
+                  {international && (
+                    <PassportFields
+                      value={passportDetails[i]}
+                      error={passportErrors[i]}
+                      unverified={!!unverified[i]}
+                      onChange={(patch) => updatePassport(i, patch)}
+                      onScan={() => setScanning(i)}
+                    />
+                  )}
+                </div>
               ))}
             </div>
           </section>
@@ -227,6 +269,88 @@ export default function Checkout({ offer, passengers, seats, account, token, onB
           </button>
         </aside>
       </div>
+
+      {scanning !== null && (
+        <PassportScanner onResult={(r) => applyScan(scanning, r)} onClose={() => setScanning(null)} />
+      )}
+    </div>
+  );
+}
+
+const LABEL = 'mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-400';
+
+function PassportFields({
+  value,
+  error,
+  unverified,
+  onChange,
+  onScan,
+}: {
+  value: PassportDetails;
+  error: string | null | undefined;
+  unverified: boolean;
+  onChange: (patch: Partial<PassportDetails>) => void;
+  onScan: () => void;
+}) {
+  return (
+    <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <p className="text-xs font-bold text-navy-950">Passport (required for international flights)</p>
+        <button
+          type="button"
+          onClick={onScan}
+          className="rounded-lg bg-navy-950 px-3 py-1.5 text-xs font-bold text-white hover:bg-navy-800"
+        >
+          Scan passport
+        </button>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="block">
+          <span className={LABEL}>Passport number</span>
+          <input
+            value={value.passportNumber}
+            onChange={(e) => onChange({ passportNumber: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '') })}
+            className="field-input"
+          />
+        </label>
+        <label className="block">
+          <span className={LABEL}>Nationality (3-letter)</span>
+          <input
+            value={value.nationality}
+            maxLength={3}
+            placeholder="NPL"
+            onChange={(e) => onChange({ nationality: e.target.value.toUpperCase().replace(/[^A-Z]/g, '') })}
+            className="field-input"
+          />
+        </label>
+        <label className="block">
+          <span className={LABEL}>Date of birth</span>
+          <input type="date" value={value.birthDate} onChange={(e) => onChange({ birthDate: e.target.value })} className="field-input" />
+        </label>
+        <label className="block">
+          <span className={LABEL}>Expiry date</span>
+          <input type="date" value={value.expiryDate} onChange={(e) => onChange({ expiryDate: e.target.value })} className="field-input" />
+        </label>
+        <label className="block">
+          <span className={LABEL}>Sex</span>
+          <select
+            value={value.sex}
+            onChange={(e) => onChange({ sex: e.target.value as PassportDetails['sex'] })}
+            className="field-input"
+          >
+            <option value="">Select</option>
+            <option value="M">Male</option>
+            <option value="F">Female</option>
+            <option value="X">Unspecified</option>
+          </select>
+        </label>
+      </div>
+      {unverified && (
+        <p className="mt-2 text-xs font-semibold text-amber-700">
+          Scan check digits did not match — compare every field with your passport before continuing.
+        </p>
+      )}
+      {error && <p className="mt-2 text-xs font-semibold text-red-600">{error}</p>}
     </div>
   );
 }

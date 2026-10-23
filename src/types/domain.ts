@@ -4,7 +4,7 @@
  * For the full backend API contract (search, holds, tickets, gate ops), see `api/contract.ts`.
  */
 
-export type TravelMode = 'air' | 'bus' | 'rail' | 'event';
+export type TravelMode = 'air' | 'bus' | 'rail' | 'event' | 'hotel' | 'resort' | 'hall';
 
 export type Currency = 'NPR' | 'USD' | 'INR';
 
@@ -107,10 +107,20 @@ export interface Ticket {
   seatLabel?: string | null;
 }
 
+export interface PassportDetails {
+  passportNumber: string;
+  nationality: string; // ISO 3166-1 alpha-3, as printed in the MRZ
+  birthDate: string; // YYYY-MM-DD
+  expiryDate: string; // YYYY-MM-DD
+  sex: 'M' | 'F' | 'X' | '';
+}
+
 export interface BookingDraft {
   offer: Offer;
   passengers: number;
   names: string[];
+  /** One per traveller, in traveller order. Only for international flights. */
+  passports?: PassportDetails[];
   phone: string;
   email: string;
   payment: PaymentMethod;
@@ -120,4 +130,4 @@ export interface BookingDraft {
   tickets?: Ticket[];
 }
 
-export type Page = 'home' | 'results' | 'checkout' | 'confirmation' | 'ops' | 'admin';
+export type Page = 'home' | 'results' | 'checkout' | 'confirmation' | 'planner' | 'ops' | 'admin';

@@ -1,7 +1,8 @@
 /** Thin fetch wrapper for the real (non-mock) Django backend: auth, bookings, admin, carts.
  *  The voice concierge is a separate service — see api/voiceAgent.ts. */
 import type { AdminBookingRow, AdminOccurrenceRow, AdminStats, AdminUserRow } from '../types/admin';
-import type { BookingDraft, Money, Offer, PaymentMethod, Place, SearchCriteria, SeatMap, Ticket, Zone } from '../types/domain';
+import type { BookingDraft, Money, Offer, PassportDetails, PaymentMethod, Place, SearchCriteria, SeatMap, Ticket, Zone } from '../types/domain';
+import { isVenueMode } from '../lib/offers';
 import type { ScanCounts, ScanEvent, ScanVerdict } from '../types/gate';
 
 interface RequestOptions {
@@ -32,6 +33,8 @@ async function request<T>(path: string, { method = 'GET', body, token, headers: 
 export interface CreateBookingPayload {
   offer: BookingDraft['offer'];
   names: string[];
+  /** One per traveller, required by the backend for international flights. */
+  passports?: PassportDetails[];
   phone: string;
   email: string;
   payment: PaymentMethod;
@@ -70,6 +73,10 @@ export const adminOccurrences = (token: string | null) =>
   request<{ occurrences: AdminOccurrenceRow[] }>('/admin/occurrences', { token });
 export const adminBookings = (token: string | null) =>
   request<{ bookings: AdminBookingRow[] }>('/admin/bookings', { token });
+
+/** Events an operator can scan against — open to operator staff as well as admins. */
+export const scanOccurrences = (token: string | null) =>
+  request<{ occurrences: AdminOccurrenceRow[] }>('/scan/occurrences', { token });
 
 export const scanRedeem = (code: string, occurrenceId: string, gate: string, token: string | null) =>
   request<ScanVerdict>('/scan/redeem', {
@@ -164,7 +171,7 @@ export const getSeatMap = (occurrenceId: string) =>
 
 /** Real backend search (POST /v1/search) — the same endpoint the voice agent's search_offers tool calls. */
 export async function searchOffersApi(c: SearchCriteria): Promise<Offer[]> {
-  const isEvent = c.mode === 'event';
+  const isEvent = isVenueMode(c.mode);
   const res = await request<{ offers: RawOffer[] }>('/search', {
     method: 'POST',
     body: {

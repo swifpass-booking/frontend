@@ -1,13 +1,13 @@
-import { useEffect, useState, type SVGProps } from 'react';
+import { useEffect, useState, type ReactNode, type SVGProps } from 'react';
 import { adminBookings, adminOccurrences, adminStats, adminUsers } from '../api/rest';
 import { formatMoney, formatDate, formatTime } from '../lib/format';
 import { ModeIcon, UsersIcon, TicketIcon, CalendarIcon, ClockIcon, MapPinIcon } from '../components/icons';
 import LiveMap from '../components/map/LiveMap';
+import { MODE_LABEL } from '../lib/offers';
 import type { AuthUser } from '../types/auth';
 import type { AdminBookingRow, AdminDashboardData, AdminOccurrenceRow, AdminUserRow } from '../types/admin';
 import type { TravelMode } from '../types/domain';
 
-const MODE_LABEL: Record<TravelMode, string> = { air: 'Flights', bus: 'Buses', rail: 'Trains', event: 'Events' };
 
 const OCCURRENCE_STATUS_STYLE: Record<string, string> = {
   scheduled: 'bg-emerald-100 text-emerald-700',
@@ -55,7 +55,7 @@ function BookingsByMode({ rows }: { rows: { mode: TravelMode; count: number }[] 
             <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-navy-950/5 text-navy-800">
               <ModeIcon mode={r.mode} className="h-4 w-4" width={16} height={16} />
             </span>
-            <span className="w-16 shrink-0 text-sm font-semibold text-navy-950">{MODE_LABEL[r.mode]}</span>
+            <span className="w-24 shrink-0 text-sm font-semibold text-navy-950">{MODE_LABEL[r.mode]}</span>
             <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-slate-100">
               <div className="h-full rounded-full bg-brand-blue" style={{ width: `${(r.count / max) * 100}%` }} />
             </div>
@@ -240,7 +240,7 @@ function UsersTable({ rows }: { rows: AdminUserRow[] }) {
   );
 }
 
-type Section = 'overview' | 'bookings' | 'trips' | 'users' | 'fleet';
+type Section = 'overview' | 'bookings' | 'trips' | 'users' | 'fleet' | 'storefront' | 'scanner';
 
 const SECTIONS: { key: Section; label: string; icon: (props: SVGProps<SVGSVGElement>) => JSX.Element }[] = [
   { key: 'overview', label: 'Overview', icon: ClockIcon },
@@ -248,6 +248,8 @@ const SECTIONS: { key: Section; label: string; icon: (props: SVGProps<SVGSVGElem
   { key: 'trips', label: 'Trips & events', icon: CalendarIcon },
   { key: 'fleet', label: 'Live fleet', icon: MapPinIcon },
   { key: 'users', label: 'Users', icon: UsersIcon },
+  { key: 'storefront', label: 'Booking site', icon: TicketIcon },
+  { key: 'scanner', label: 'QR scanner', icon: ClockIcon },
 ];
 
 function FleetView({ rows }: { rows: AdminOccurrenceRow[] }) {
@@ -285,10 +287,14 @@ interface AdminAppProps {
   user: AuthUser;
   token: string | null;
   onSignOut: () => void;
+  /** The traveller booking site (homepage → checkout), so admins can see and test what customers see. */
+  storefront: ReactNode;
+  /** The operator gate scanner, so admins can admit guests too. */
+  scanner: ReactNode;
 }
 
 /** The admin's own app: sidebar dashboard, separate from the traveller booking site. */
-export default function AdminApp({ user, token, onSignOut }: AdminAppProps) {
+export default function AdminApp({ user, token, onSignOut, storefront, scanner }: AdminAppProps) {
   const [data, setData] = useState<AdminDashboardData | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -386,6 +392,15 @@ export default function AdminApp({ user, token, onSignOut }: AdminAppProps) {
           {data && section === 'trips' && <OccurrencesTable rows={data.occurrences} />}
           {data && section === 'fleet' && <FleetView rows={data.occurrences} />}
           {data && section === 'users' && <UsersTable rows={data.users} />}
+          {section === 'storefront' && (
+            <div className="overflow-hidden rounded-2xl border border-slate-200 shadow-card">
+              <p className="bg-amber-50 px-4 py-2 text-xs font-semibold text-amber-800">
+                Live preview of the customer booking site — bookings made here are real and signed in as you.
+              </p>
+              {storefront}
+            </div>
+          )}
+          {section === 'scanner' && scanner}
         </main>
       </div>
     </div>

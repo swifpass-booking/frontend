@@ -25,7 +25,7 @@ export interface VoiceTurnResponse {
 
 /** Search the agent just ran, in the same shape as the frontend's SearchCriteria. */
 export interface VoiceSearch {
-  mode: 'air' | 'bus' | 'rail' | 'event' | null;
+  mode: 'air' | 'bus' | 'rail' | 'event' | 'hotel' | 'resort' | 'hall' | null;
   from: string | null;
   to: string | null;
   date: string | null;

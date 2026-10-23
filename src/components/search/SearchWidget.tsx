@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { fetchCities } from '../../api/rest';
-import { MODES } from '../../lib/offers';
+import { MODES, isVenueMode } from '../../lib/offers';
 import VoiceOrb, { phaseLabel } from '../agent/VoiceOrb';
 import { useVoice } from '../../context/VoiceContext';
 import { ModeIcon, SearchIcon, CalendarIcon, UsersIcon, MapPinIcon } from '../icons';
@@ -33,7 +33,8 @@ export default function SearchWidget({ initial, onSearch, compact = false }: Sea
   }, [mode]);
   // Keep values set by the voice assistant selectable even before/without the city list loading.
   const cities = useMemo(() => [...new Set([...loaded, from, to, city].filter(Boolean))].map((c) => ({ city: c })), [loaded, from, to, city]);
-  const isEvent = mode === 'event';
+  const isEvent = isVenueMode(mode);
+  const stay = mode === 'hotel' || mode === 'resort';
 
   function submit(e: FormEvent) {
     e.preventDefault();
@@ -65,7 +66,7 @@ export default function SearchWidget({ initial, onSearch, compact = false }: Sea
 
       <form onSubmit={submit} className={`grid gap-3 ${isEvent ? 'sm:grid-cols-[1.4fr_1fr_1fr_auto]' : 'sm:grid-cols-[1.2fr_1.2fr_1fr_0.8fr_auto]'}`}>
         {isEvent ? (
-          <Field label="City / venue" icon={MapPinIcon}>
+          <Field label={stay ? 'Destination' : 'City / venue'} icon={MapPinIcon}>
             <select value={city} onChange={(e) => setCity(e.target.value)} className="field-input">
               <option value="">Anywhere</option>
               {cities.map((c) => (
@@ -100,11 +101,11 @@ export default function SearchWidget({ initial, onSearch, compact = false }: Sea
           </>
         )}
 
-        <Field label="Date" icon={CalendarIcon}>
+        <Field label={stay ? 'Check-in' : 'Date'} icon={CalendarIcon}>
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="field-input" />
         </Field>
 
-        <Field label="Travellers" icon={UsersIcon}>
+        <Field label={mode === 'hall' ? 'Guests' : stay ? 'Rooms' : 'Travellers'} icon={UsersIcon}>
           <select value={passengers} onChange={(e) => setPassengers(Number(e.target.value))} className="field-input">
             {[1, 2, 3, 4, 5, 6].map((n) => (
               <option key={n} value={n}>

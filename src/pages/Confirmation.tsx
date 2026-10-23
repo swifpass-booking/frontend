@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { isVenueMode } from '../lib/offers';
 import LiveMap from '../components/map/LiveMap';
 import QRCode from 'qrcode';
 import { formatMoney, formatTime, formatDate } from '../lib/format';
@@ -265,7 +266,7 @@ export default function Confirmation({ booking, onDone }: { booking: BookingDraf
         >
           Download ticket
         </button>
-        {offer.mode !== 'event' && (
+        {!isVenueMode(offer.mode) && (
           <button
             onClick={() => setTracking((v) => !v)}
             className="rounded-xl border border-slate-200 px-6 py-3 text-sm font-bold text-navy-950 transition hover:bg-slate-50"

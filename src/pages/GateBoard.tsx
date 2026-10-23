@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import jsQR from 'jsqr';
-import { adminOccurrences, scanHistory, scanRedeem, scanStats } from '../api/rest';
+import { scanHistory, scanOccurrences, scanRedeem, scanStats } from '../api/rest';
 import { ModeIcon } from '../components/icons';
 import type { AuthUser } from '../types/auth';
 import type { AdminOccurrenceRow } from '../types/admin';
@@ -94,10 +94,12 @@ interface GateBoardProps {
   onBack: () => void;
   onSignIn: () => void;
   backLabel?: string;
+  /** Rendered inside the admin panel, which already has its own header and back link. */
+  embedded?: boolean;
 }
 
-export default function GateBoard({ user, token, onBack, onSignIn, backLabel = 'Back to booking site' }: GateBoardProps) {
-  const isAdmin = user?.role === 'admin';
+export default function GateBoard({ user, token, onBack, onSignIn, backLabel = 'Back to booking site', embedded = false }: GateBoardProps) {
+  const isStaff = user?.role === 'admin' || user?.role === 'operator_staff' || user?.role === 'gate_agent';
 
   const [occurrences, setOccurrences] = useState<AdminOccurrenceRow[]>([]);
   const [occurrenceId, setOccurrenceId] = useState('');
@@ -119,11 +121,11 @@ export default function GateBoard({ user, token, onBack, onSignIn, backLabel = '
   const clearTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
-    if (!isAdmin) return;
-    adminOccurrences(token)
+    if (!isStaff) return;
+    scanOccurrences(token)
       .then((res) => setOccurrences(res.occurrences))
       .catch((err) => setError((err as Error).message));
-  }, [isAdmin, token]);
+  }, [isStaff, token]);
 
   const refreshStats = useCallback(
     (occId: string) => {
@@ -231,12 +233,12 @@ export default function GateBoard({ user, token, onBack, onSignIn, backLabel = '
     }
   }
 
-  if (!isAdmin) {
+  if (!isStaff) {
     return (
       <div className="mx-auto max-w-md px-4 py-24 text-center">
-        <p className="text-lg font-extrabold text-navy-950">Admin access required</p>
+        <p className="text-lg font-extrabold text-navy-950">Staff access required</p>
         <p className="mt-2 text-sm text-slate-500">
-          {user ? "Your account doesn't have admin access." : 'Sign in with an admin account to scan tickets.'}
+          {user ? "Your account can't scan tickets." : 'Sign in with an operator or admin account to scan tickets.'}
         </p>
         <button
           onClick={user ? onBack : onSignIn}
@@ -252,12 +254,17 @@ export default function GateBoard({ user, token, onBack, onSignIn, backLabel = '
   const tone = verdict ? (verdict.accepted ? C.jade : C.crimson) : null;
 
   return (
-    <div style={{ background: C.ink, minHeight: '100vh' }}>
-      <div className="border-b px-4 py-2.5 sm:px-6" style={{ borderColor: C.edge }}>
-        <button onClick={onBack} className="text-sm font-semibold" style={{ color: C.dim }}>
-          ← {backLabel}
-        </button>
-      </div>
+    <div style={{ background: C.ink, minHeight: embedded ? undefined : '100vh', borderRadius: embedded ? 16 : undefined }}>
+      {!embedded && (
+        <div className="flex items-center justify-between border-b px-4 py-2.5 sm:px-6" style={{ borderColor: C.edge }}>
+          <button onClick={onBack} className="text-sm font-semibold" style={{ color: C.dim }}>
+            ← {backLabel}
+          </button>
+          <span className="text-xs font-semibold" style={{ color: C.dim }}>
+            {user?.fullName} · Operator console
+          </span>
+        </div>
+      )}
 
       <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
         <div className="mb-5 flex flex-wrap items-end gap-4">
@@ -387,7 +394,7 @@ export default function GateBoard({ user, token, onBack, onSignIn, backLabel = '
 
             <div className="rounded-2xl" style={{ background: C.panel, border: `1px solid ${C.edge}` }}>
               <div className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide" style={{ color: C.dim, borderBottom: `1px solid ${C.edge}` }}>
-                Scan history · all admins
+                Scan history · all gates
               </div>
               <div className="max-h-96 overflow-y-auto">
                 {feed.length === 0 ? (

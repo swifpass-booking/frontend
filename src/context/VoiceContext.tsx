@@ -7,6 +7,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { getCart, toOffer } from '../api/rest';
 import { postVoiceTurn, synthesizeSpeech, transcribeAudio } from '../api/voiceAgent';
 import { startRecording, type Recorder } from '../lib/recorder';
+import { isVenueMode } from '../lib/offers';
 import type { VoiceSearch } from '../types/agent';
 import type { Offer, SearchCriteria, TravelMode } from '../types/domain';
 
@@ -37,9 +38,9 @@ function toCriteria(s: VoiceSearch): SearchCriteria {
   const match = (v: string | null) => (v ? v.trim().replace(/\b\w/g, (c) => c.toUpperCase()) : '');
   return {
     mode,
-    from: mode === 'event' ? '' : match(s.from),
-    to: mode === 'event' ? '' : match(s.to),
-    city: mode === 'event' ? match(s.to || s.from) : '',
+    from: isVenueMode(mode) ? '' : match(s.from),
+    to: isVenueMode(mode) ? '' : match(s.to),
+    city: isVenueMode(mode) ? match(s.to || s.from) : '',
     date: s.date || new Date().toISOString().slice(0, 10),
     passengers: s.passengers || 1,
   };

@@ -2,9 +2,18 @@ import { useState } from 'react';
 import SeatPicker from '../seats/SeatPicker';
 import { formatMoney, formatTime, formatDate, formatDuration } from '../../lib/format';
 import { ModeIcon, ClockIcon, ChevronRightIcon } from '../icons';
+import { isVenueMode } from '../../lib/offers';
 import type { Offer, SeatPick, TravelMode } from '../../types/domain';
 
-const MODE_LABEL: Record<TravelMode, string> = { air: 'Flight', bus: 'Bus', rail: 'Train', event: 'Event' };
+const MODE_LABEL: Record<TravelMode, string> = {
+  air: 'Flight',
+  bus: 'Bus',
+  rail: 'Train',
+  event: 'Event',
+  hotel: 'Hotel',
+  resort: 'Resort',
+  hall: 'Event hall',
+};
 
 interface OfferCardProps {
   offer: Offer;
@@ -15,7 +24,7 @@ interface OfferCardProps {
 export default function OfferCard({ offer, passengers = 1, onSelect }: OfferCardProps) {
   const [picking, setPicking] = useState(false);
   const seated = offer.hasReservedSeating;
-  const isRoute = offer.mode !== 'event';
+  const isRoute = !isVenueMode(offer.mode);
   const soldPct = Math.round(((offer.capacity - offer.seatsAvailable) / offer.capacity) * 100);
   const almostGone = offer.seatsAvailable > 0 && offer.seatsAvailable <= Math.max(4, Math.round(offer.capacity * 0.08));
 

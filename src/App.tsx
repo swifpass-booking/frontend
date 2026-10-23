@@ -11,11 +11,13 @@ import Checkout from './pages/Checkout';
 import Confirmation from './pages/Confirmation';
 import AdminApp from './pages/AdminDashboard';
 import GateBoard from './pages/GateBoard';
+import Planner from './pages/Planner';
 import StaffLogin from './pages/StaffLogin';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import type { BookingDraft, Offer, Page, SearchCriteria, SeatPick } from './types/domain';
 
-function TravellerApp() {
+/** `embedded`: shown inside the admin panel, so the admin sees exactly what travellers book from. */
+function TravellerApp({ embedded = false }: { embedded?: boolean }) {
   const [page, setPage] = useState<Page>('home');
   const [criteria, setCriteria] = useState<SearchCriteria | null>(null);
   const [selectedOffer, setSelectedOffer] = useState<Offer | null>(null);
@@ -67,7 +69,7 @@ function TravellerApp() {
 
   return (
     <VoiceProvider token={token} onReviewOffer={handleSelect} onSearch={handleSearch}>
-    <div className="min-h-screen bg-slate-50 font-sans text-navy-950">
+    <div className={`${embedded ? '' : 'min-h-screen '}bg-slate-50 font-sans text-navy-950`}>
       <Nav
         page={page}
         cartCount={selectedOffer && page !== 'confirmation' ? 1 : 0}
@@ -77,7 +79,9 @@ function TravellerApp() {
 
       {returning && <PaymentReturn provider={returning} onConfirmed={handlePaid} onBack={() => setReturning(null)} />}
 
-      {!returning && page === 'home' && <Home onSearch={handleSearch} />}
+      {!returning && page === 'home' && <Home onSearch={handleSearch} onPlan={() => setPage('planner')} />}
+
+      {page === 'planner' && <Planner />}
 
       {page === 'results' && criteria && (
         <Results criteria={criteria} onSearch={handleSearch} onSelect={handleSelect} />
@@ -97,7 +101,7 @@ function TravellerApp() {
 
       {page === 'confirmation' && <Confirmation booking={booking} onDone={goHome} />}
 
-      <Footer />
+      {!embedded && <Footer />}
 
       {authOpen && <AuthModal onClose={() => setAuthOpen(false)} />}
 
@@ -114,7 +118,17 @@ function RoleRouter() {
 
   if (!ready) return <div className="min-h-screen bg-slate-50" />;
 
-  if (user?.role === 'admin') return <AdminApp user={user} token={token} onSignOut={logout} />;
+  if (user?.role === 'admin') {
+    return (
+      <AdminApp
+        user={user}
+        token={token}
+        onSignOut={logout}
+        storefront={<TravellerApp embedded />}
+        scanner={<GateBoard user={user} token={token} onBack={() => undefined} onSignIn={() => undefined} embedded />}
+      />
+    );
+  }
 
   if (user?.role === 'operator_staff' || user?.role === 'gate_agent') {
     return (

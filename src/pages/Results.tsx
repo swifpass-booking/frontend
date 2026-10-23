@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { isVenueMode } from '../lib/offers';
 import SearchWidget from '../components/search/SearchWidget';
 import OfferCard from '../components/results/OfferCard';
 import { searchOffersApi } from '../api/rest';
@@ -61,7 +62,7 @@ export default function Results({ criteria, onSearch, onSelect }: ResultsProps) 
   }, [offers]);
 
   const routeLabel =
-    criteria.mode === 'event'
+    isVenueMode(criteria.mode)
       ? criteria.city || 'Anywhere'
       : `${criteria.from || 'Anywhere'} → ${criteria.to || 'Anywhere'}`;
 
