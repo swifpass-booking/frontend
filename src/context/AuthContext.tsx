@@ -1,21 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import { request } from '../api/rest';
 import type { AuthContextValue, AuthSession, AuthUser } from '../types/auth';
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 const STORAGE_KEY = 'swiftpass.auth';
-
-async function api<T>(path: string, body: unknown): Promise<T> {
-  const res = await fetch(`/v1${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  const json = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error(json?.error?.message || 'Something went wrong. Try again.');
-  }
-  return json as T;
-}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<AuthSession | null>(null);
@@ -29,8 +17,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     try {
       const { token, user } = JSON.parse(raw) as AuthSession;
-      fetch('/v1/auth/me', { headers: { Authorization: `Bearer ${token}` } })
-        .then((res) => (res.ok ? res.json() : Promise.reject()))
+      request<{ user: AuthUser }>('/auth/me', { token })
         .then((json) => setSession({ token, user: json.user }))
         .catch(() => {
           localStorage.removeItem(STORAGE_KEY);
@@ -50,14 +37,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const login = useCallback(async (identifier: string, password: string): Promise<AuthUser> => {
-    const data = await api<AuthSession>('/auth/login', { identifier, password });
+    const data = await request<AuthSession>('/auth/login', { method: 'POST', body: { identifier, password } });
     persist(data);
     return data.user;
   }, []);
 
   const register = useCallback(
     async (fullName: string, identifier: string, password: string): Promise<AuthUser> => {
-      const data = await api<AuthSession>('/auth/register', { fullName, identifier, password });
+      const data = await request<AuthSession>('/auth/register', { method: 'POST', body: { fullName, identifier, password } });
       persist(data);
       return data.user;
     },
@@ -67,7 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(() => {
     // Revoke server-side too, so a copied token stops working.
     if (session) {
-      fetch('/v1/auth/logout', { method: 'POST', headers: { Authorization: `Bearer ${session.token}` } }).catch(() => {});
+      request('/auth/logout', { method: 'POST', token: session.token }).catch(() => {});
     }
     localStorage.removeItem(STORAGE_KEY);
     setSession(null);

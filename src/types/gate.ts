@@ -1,13 +1,3 @@
-import type { TravelMode } from './domain';
-
-export interface GateOccurrence {
-  id: string;
-  mode: TravelMode;
-  title: string;
-  providerName: string;
-  departsAt: string;
-}
-
 export interface ScanCounts {
   issued: number;
   redeemed: number;

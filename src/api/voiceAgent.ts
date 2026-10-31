@@ -6,41 +6,30 @@
  */
 import type { VoiceTurnRequest, VoiceTurnResponse } from '../types/agent';
 
-export async function postVoiceTurn(payload: VoiceTurnRequest): Promise<VoiceTurnResponse> {
-  const res = await fetch('/agent/turns', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  const json = await res.json().catch(() => ({}));
+/** POST to the agent service; throws the server's `detail` (or `fallback`) on a non-2xx reply. */
+async function agentPost(path: string, contentType: string, body: BodyInit, fallback: string): Promise<Response> {
+  const res = await fetch(`/agent${path}`, { method: 'POST', headers: { 'Content-Type': contentType }, body });
   if (!res.ok) {
-    throw new Error(json?.detail || 'Could not reach the voice concierge.');
+    const json = await res.json().catch(() => ({}));
+    throw new Error(json?.detail || fallback);
   }
-  return json as VoiceTurnResponse;
+  return res;
+}
+
+export async function postVoiceTurn(payload: VoiceTurnRequest): Promise<VoiceTurnResponse> {
+  const res = await agentPost('/turns', 'application/json', JSON.stringify(payload), 'Could not reach the voice concierge.');
+  return (await res.json().catch(() => ({}))) as VoiceTurnResponse;
 }
 
 /** POST a 16 kHz mono WAV to the SeamlessM4T STT endpoint; returns the transcript. */
 export async function transcribeAudio(wav: Blob, lang = 'en'): Promise<string> {
-  const res = await fetch(`/agent/stt?lang=${encodeURIComponent(lang)}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'audio/wav' },
-    body: wav,
-  });
+  const res = await agentPost(`/stt?lang=${encodeURIComponent(lang)}`, 'audio/wav', wav, 'Could not transcribe audio.');
   const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(json?.detail || 'Could not transcribe audio.');
   return (json.text as string) || '';
 }
 
 /** Synthesize `text` with SeamlessM4T TTS; returns a WAV blob. */
 export async function synthesizeSpeech(text: string, lang = 'en'): Promise<Blob> {
-  const res = await fetch('/agent/tts', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text, lang }),
-  });
-  if (!res.ok) {
-    const json = await res.json().catch(() => ({}));
-    throw new Error(json?.detail || 'Could not synthesize speech.');
-  }
+  const res = await agentPost('/tts', 'application/json', JSON.stringify({ text, lang }), 'Could not synthesize speech.');
   return res.blob();
 }

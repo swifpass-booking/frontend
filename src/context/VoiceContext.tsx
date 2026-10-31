@@ -13,7 +13,7 @@ import type { Offer, SearchCriteria, TravelMode } from '../types/domain';
 
 export type VoicePhase = 'idle' | 'listening' | 'transcribing' | 'thinking' | 'speaking';
 
-export interface LogEntry {
+interface LogEntry {
   role: 'user' | 'assistant';
   text: string;
   /** True for replies that arrived this page load — they get the typing animation. */

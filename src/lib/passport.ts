@@ -36,7 +36,7 @@ export interface ScanResult {
 }
 
 /** Pull candidate TD3 (passport) lines out of noisy OCR text: two 44-char lines, first starting with P. */
-export function extractMrzLines(text: string): string[] | null {
+function extractMrzLines(text: string): string[] | null {
   const lines = text
     .split('\n')
     .map((l) => l.replace(/\s+/g, '').toUpperCase().replace(/[«‹]/g, '<'))

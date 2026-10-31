@@ -27,9 +27,9 @@ function TravellerApp({ embedded = false }: { embedded?: boolean }) {
   const [authOpen, setAuthOpen] = useState(false);
   const { user, token } = useAuth();
   // eSewa / Khalti send the browser back to /payment/<provider>?... — confirm it before anything else.
-  const [returning, setReturning] = useState<'esewa' | 'khalti' | null>(() => {
-    const m = window.location.pathname.match(/^\/payment\/(esewa|khalti)$/);
-    return m ? (m[1] as 'esewa' | 'khalti') : null;
+  const [returning, setReturning] = useState<'esewa' | 'khalti' | 'fonepay' | null>(() => {
+    const m = window.location.pathname.match(/^\/payment\/(esewa|khalti|fonepay)$/);
+    return m ? (m[1] as 'esewa' | 'khalti' | 'fonepay') : null;
   });
 
   function handleSearch(c: SearchCriteria) {

@@ -12,14 +12,14 @@ const base: IconProps = {
   strokeLinejoin: 'round',
 };
 
-export function PlaneIcon(props: IconProps) {
+function PlaneIcon(props: IconProps) {
   return (
     <svg viewBox="0 0 24 24" {...base} {...props}>
       <path d="M10.5 20.5l1.5-4.5-7-2.5 1-2 8 1 3.5-6.5c.4-.7 1.4-.9 2.1-.4.5.4.7 1.1.4 1.7L16.5 14.5l1 8-2-1-2-4-3 3v0z" />
     </svg>
   );
 }
-export function BusIcon(props: IconProps) {
+function BusIcon(props: IconProps) {
   return (
     <svg viewBox="0 0 24 24" {...base} {...props}>
       <rect x="4" y="4" width="16" height="12" rx="2" />
@@ -29,7 +29,7 @@ export function BusIcon(props: IconProps) {
     </svg>
   );
 }
-export function TrainIcon(props: IconProps) {
+function TrainIcon(props: IconProps) {
   return (
     <svg viewBox="0 0 24 24" {...base} {...props}>
       <rect x="6" y="3" width="12" height="14" rx="3" />
@@ -141,7 +141,7 @@ export function SendIcon(props: IconProps) {
   );
 }
 
-export function BedIcon(props: IconProps) {
+function BedIcon(props: IconProps) {
   return (
     <svg viewBox="0 0 24 24" {...base} {...props}>
       <path d="M3 18V6M3 14h18v4M21 14v-2a3 3 0 00-3-3h-7v5M7 11.5a1.5 1.5 0 100-.01" />
@@ -149,7 +149,7 @@ export function BedIcon(props: IconProps) {
   );
 }
 
-export function BuildingIcon(props: IconProps) {
+function BuildingIcon(props: IconProps) {
   return (
     <svg viewBox="0 0 24 24" {...base} {...props}>
       <path d="M4 21V5l8-2v18M12 8h8v13M2 21h20M7.5 9h1M7.5 13h1M7.5 17h1M15.5 12h1M15.5 16h1" />

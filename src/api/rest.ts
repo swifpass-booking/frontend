@@ -12,7 +12,7 @@ interface RequestOptions {
   headers?: Record<string, string>;
 }
 
-async function request<T>(path: string, { method = 'GET', body, token, headers: extra }: RequestOptions = {}): Promise<T> {
+export async function request<T>(path: string, { method = 'GET', body, token, headers: extra }: RequestOptions = {}): Promise<T> {
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -30,7 +30,7 @@ async function request<T>(path: string, { method = 'GET', body, token, headers: 
   return json as T;
 }
 
-export interface CreateBookingPayload {
+interface CreateBookingPayload {
   offer: BookingDraft['offer'];
   names: string[];
   /** One per traveller, required by the backend for international flights. */
@@ -39,19 +39,21 @@ export interface CreateBookingPayload {
   email: string;
   payment: PaymentMethod;
   total: Money;
+  /** Demo card, validated server-side against test numbers and never stored. */
+  card?: { number: string; expiry: string; cvc: string };
   /** One seat label per traveller, in traveller order. Omit for general admission. */
   seats?: string[];
 }
 
 /** Redirect instructions for eSewa/Khalti — present when the booking is pending payment. */
 export interface PaymentGateway {
-  provider: 'esewa' | 'khalti';
+  provider: 'esewa' | 'khalti' | 'fonepay';
   method: 'GET' | 'POST';
   url: string;
   fields?: Record<string, string>;
 }
 
-export interface CreateBookingResponse {
+interface CreateBookingResponse {
   reference: string;
   status?: string;
   tickets: Ticket[];
@@ -155,7 +157,7 @@ interface RawCartItem {
   lineTotal: Money;
 }
 
-export interface RawCart {
+interface RawCart {
   cartId: string;
   items: RawCartItem[];
   subtotal: Money;
@@ -191,7 +193,7 @@ export const fetchCities = (mode: Offer['mode']) =>
 export const fetchFeatured = () => request<{ offers: RawOffer[] }>('/featured').then((r) => r.offers.map(toOffer));
 
 /** Ask the backend to confirm a gateway payment (it re-checks with eSewa/Khalti before issuing tickets). */
-export const verifyPayment = (params: { provider: 'esewa' | 'khalti'; data?: string; pidx?: string; failed?: boolean; ref?: string }) =>
+export const verifyPayment = (params: { provider: 'esewa' | 'khalti' | 'fonepay'; query?: Record<string, string>; data?: string; pidx?: string; failed?: boolean; ref?: string }) =>
   request<CreateBookingResponse>('/payments/verify', { method: 'POST', body: params });
 
 export interface Tracking {

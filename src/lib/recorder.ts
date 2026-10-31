@@ -6,7 +6,7 @@ export interface Recorder {
   cancel: () => void;
 }
 
-export interface RecordOptions {
+interface RecordOptions {
   /** Called every animation frame with mic loudness 0..1 (for the UI). */
   onLevel?: (level: number) => void;
   /** Fired once the speaker has talked and then gone quiet for `silenceMs`. */

@@ -40,6 +40,7 @@ export default function Checkout({ offer, passengers, seats, account, token, onB
   const [phone, setPhone] = useState(account?.phoneE164 || '');
   const [email, setEmail] = useState(account?.email || '');
   const [payment, setPayment] = useState<PaymentMethod>('esewa');
+  const [card, setCard] = useState({ number: '', expiry: '', cvc: '' });
   const [agreed, setAgreed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -98,7 +99,7 @@ export default function Checkout({ offer, passengers, seats, account, token, onB
     setError('');
     setSubmitting(true);
     try {
-      const booking = await createBooking({ offer: offer as Offer, names, passports: international ? passportDetails : undefined, phone, email, payment, total, seats: seated ? seats.map((s) => s.label) : undefined }, token, idempotencyKey.current);
+      const booking = await createBooking({ offer: offer as Offer, names, passports: international ? passportDetails : undefined, phone, email, payment, total, card: payment === 'card' ? card : undefined, seats: seated ? seats.map((s) => s.label) : undefined }, token, idempotencyKey.current);
       if (booking.gateway) {
         // eSewa / Khalti: nothing is booked until the gateway confirms — go pay, come back via /payment/<provider>.
         savePendingCheckout({ offer: offer as Offer, passengers, seats, names, phone, email, payment, total, reference: booking.reference });
@@ -209,6 +210,33 @@ export default function Checkout({ offer, passengers, seats, account, token, onB
               <p className="mt-4 rounded-xl bg-violet-50 px-3.5 py-3 text-xs leading-relaxed text-violet-900">
                 <span className="font-bold">Khalti test mode.</span> You'll be sent to Khalti's sandbox to pay with a test wallet. No real money moves.
               </p>
+            )}
+
+            {payment === 'fonepay' && (
+              <p className="mt-4 rounded-xl bg-rose-50 px-3.5 py-3 text-xs leading-relaxed text-rose-900">
+                <span className="font-bold">Fonepay test mode.</span> You'll be sent to Fonepay's dev gateway to pay with a test account. No real money moves.
+              </p>
+            )}
+
+            {payment === 'card' && (
+              <div className="mt-4 rounded-xl bg-sky-50 px-3.5 py-3 text-xs leading-relaxed text-sky-900">
+                <p>
+                  <span className="font-bold">Card test mode.</span> Visa <code className="font-bold">4242 4242 4242 4242</code>, Mastercard{' '}
+                  <code className="font-bold">5555 5555 5555 4444</code>, any future expiry, any 3-digit CVC. Use{' '}
+                  <code className="font-bold">4000 0000 0000 0002</code> to see a decline. No real money moves.
+                </p>
+                <div className="mt-3 grid grid-cols-[1fr_90px_80px] gap-2">
+                  <input inputMode="numeric" autoComplete="off" placeholder="Card number" maxLength={19} value={card.number}
+                    onChange={(e) => setCard({ ...card, number: e.target.value.replace(/[^\d]/g, '').replace(/(.{4})/g, '$1 ').trim() })}
+                    className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-navy-950" />
+                  <input inputMode="numeric" autoComplete="off" placeholder="MM/YY" maxLength={5} value={card.expiry}
+                    onChange={(e) => setCard({ ...card, expiry: e.target.value.replace(/[^\d/]/g, '') })}
+                    className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-navy-950" />
+                  <input inputMode="numeric" autoComplete="off" placeholder="CVC" maxLength={3} value={card.cvc}
+                    onChange={(e) => setCard({ ...card, cvc: e.target.value.replace(/\D/g, '') })}
+                    className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-navy-950" />
+                </div>
+              </div>
             )}
 
             <label className="mt-5 flex items-start gap-2.5 text-sm text-slate-600">
