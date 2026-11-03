@@ -15,6 +15,8 @@ const MODE_LABEL: Record<TravelMode, string> = {
   hall: 'Event hall',
 };
 
+const STAY_MODES = new Set<TravelMode>(['hotel', 'resort', 'hall']);
+
 interface OfferCardProps {
   offer: Offer;
   passengers?: number;
@@ -68,7 +70,7 @@ export default function OfferCard({ offer, passengers = 1, onSelect }: OfferCard
             <p className="text-lg font-extrabold text-navy-950">{formatDate(offer.departsAt)}</p>
             <p className="flex items-center gap-1 text-xs text-slate-500">
               <ClockIcon className="h-3 w-3" width={12} height={12} />
-              Doors {formatTime(offer.departsAt)} · {offer.venue?.name}, {offer.venue?.city}
+              {STAY_MODES.has(offer.mode) ? 'Check-in' : 'Doors'} {formatTime(offer.departsAt)} · {offer.venue?.name}, {offer.venue?.city}
             </p>
           </div>
         )}

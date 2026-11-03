@@ -7,11 +7,13 @@ interface PaymentReturnProps {
   provider: 'esewa' | 'khalti' | 'fonepay';
   onConfirmed: (booking: BookingDraft) => void;
   onBack: () => void;
+  onTickets: () => void;
 }
 
 /** Landing page after eSewa/Khalti redirect back: confirm with the backend, then show the tickets. */
-export default function PaymentReturn({ provider, onConfirmed, onBack }: PaymentReturnProps) {
+export default function PaymentReturn({ provider, onConfirmed, onBack, onTickets }: PaymentReturnProps) {
   const [error, setError] = useState<string | null>(null);
+  const [paidRef, setPaidRef] = useState<string | null>(null); // paid, but this browser no longer has the trip details
   const ran = useRef(false); // StrictMode double-invokes effects; the pending draft can only be taken once
 
   useEffect(() => {
@@ -30,7 +32,7 @@ export default function PaymentReturn({ provider, onConfirmed, onBack }: Payment
       .then((booking) => {
         window.history.replaceState({}, '', '/');
         if (!draft) {
-          setError(`Payment confirmed (reference ${booking.reference}), but the trip details were lost on return. Check your bookings.`);
+          setPaidRef(booking.reference);
           return;
         }
         onConfirmed({ ...draft, ...booking });
@@ -38,6 +40,19 @@ export default function PaymentReturn({ provider, onConfirmed, onBack }: Payment
       .catch((e: Error) => setError(e.message || 'Could not confirm the payment.'));
   }, [provider, onConfirmed]);
 
+  if (paidRef) {
+    return (
+      <div className="mx-auto max-w-md px-4 py-24 text-center">
+        <p className="text-lg font-extrabold text-navy-950">Payment confirmed</p>
+        <p className="mt-2 text-sm text-slate-600">
+          Your reference is <span className="font-mono font-bold">{paidRef}</span>. Your tickets are in My tickets.
+        </p>
+        <button onClick={() => { window.history.replaceState({}, '', '/'); onTickets(); }} className="mt-5 rounded-xl bg-brand-blue px-5 py-2.5 text-sm font-bold text-white hover:bg-blue-700">
+          Open My tickets
+        </button>
+      </div>
+    );
+  }
   if (!error) {
     return (
       <div className="mx-auto max-w-md px-4 py-24 text-center">

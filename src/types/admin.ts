@@ -10,6 +10,8 @@ export interface AdminBookingRow {
   payment: { method: string };
   total: Money;
   status: string;
+  /** Paid after the seats were released: the customer is owed a refund. */
+  refundDue?: boolean;
   createdAt: string;
 }
 

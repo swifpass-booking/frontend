@@ -73,6 +73,7 @@ function ScanRow({ e }: { e: ScanEvent }) {
         </div>
         <div className="text-[11px] truncate" style={{ color: C.dim }}>
           {e.accepted ? e.tripTitle : e.message}
+          {e.zoneLabel ? ` · ${e.zoneLabel}` : ''}
           {e.scannedBy ? ` · ${e.scannedBy}` : ''}
         </div>
       </div>
@@ -182,6 +183,10 @@ export default function GateBoard({ user, token, onBack, onSignIn, backLabel = '
     [occurrenceId, gate, token, refreshStats, refreshFeed]
   );
 
+  // The camera loop keeps calling the `tick` it started with, so it must reach the latest handler (current event and gate) through a ref.
+  const handleRef = useRef(handleCode);
+  handleRef.current = handleCode;
+
   const tick = useCallback(() => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
@@ -194,11 +199,11 @@ export default function GateBoard({ user, token, onBack, onSignIn, backLabel = '
       const found = jsQR(frame.data, frame.width, frame.height);
       if (found && found.data && found.data !== lastCodeRef.current && !busyRef.current) {
         lastCodeRef.current = found.data;
-        handleCode(found.data);
+        handleRef.current(found.data);
       }
     }
     rafRef.current = requestAnimationFrame(tick);
-  }, [handleCode]);
+  }, []);
 
   async function startCamera() {
     setCameraError('');
@@ -359,6 +364,7 @@ export default function GateBoard({ user, token, onBack, onSignIn, backLabel = '
                   <p className="text-sm text-white/90">
                     {verdict.passengerName || (verdict.reason && REJECT_COPY[verdict.reason]) || verdict.message}
                   </p>
+                  {verdict.zoneLabel && <p className="text-sm font-bold text-white">{verdict.zoneLabel}</p>}
                   {!verdict.accepted && <p className="text-xs text-white/75">{verdict.message}</p>}
                 </div>
               )}

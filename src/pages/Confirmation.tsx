@@ -14,7 +14,7 @@ function reference(): string {
 }
 
 /** A real, scannable QR encoding the server-issued ticket credential. */
-function TicketQr({ code }: { code: string }) {
+export function TicketQr({ code }: { code: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -138,11 +138,12 @@ export default function Confirmation({ booking, onDone }: { booking: BookingDraf
   }
 
   const { offer, names, total, tickets } = booking;
+  const zoneLabel = booking.zone?.label ?? tickets?.[0]?.zoneLabel;
 
   async function handleDownload() {
     if (!tickets?.length) return;
     const meta: TicketMeta = {
-      title: offer.title,
+      title: zoneLabel ? `${offer.title} · ${zoneLabel}` : offer.title,
       providerName: offer.provider.displayName,
       date: formatDate(offer.departsAt),
       time: formatTime(offer.departsAt),
@@ -163,7 +164,7 @@ export default function Confirmation({ booking, onDone }: { booking: BookingDraf
         </span>
         <h1 className="mt-4 text-2xl font-extrabold text-navy-950">Booking confirmed</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Reference <span className="font-mono font-bold text-navy-950">{ref}</span> · sent to your phone
+          Reference <span className="font-mono font-bold text-navy-950">{ref}</span>
         </p>
       </div>
 
@@ -174,7 +175,10 @@ export default function Confirmation({ booking, onDone }: { booking: BookingDraf
           </span>
           <div>
             <p className="text-sm font-bold">{offer.title}</p>
-            <p className="text-xs text-navy-100/70">{offer.provider.displayName}</p>
+            <p className="text-xs text-navy-100/70">
+              {offer.provider.displayName}
+              {zoneLabel && ` · ${zoneLabel}`}
+            </p>
           </div>
         </div>
 

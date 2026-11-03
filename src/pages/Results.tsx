@@ -28,6 +28,8 @@ export default function Results({ criteria, onSearch, onSelect }: ResultsProps) 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => setMaxPrice(null), [criteria]); // a ceiling from the last search would hide this search's results
+
   useEffect(() => {
     let cancelled = false;
     setLoading(true);

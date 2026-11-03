@@ -141,6 +141,9 @@ function BookingsTable({ rows }: { rows: AdminBookingRow[] }) {
                     >
                       {b.status}
                     </span>
+                    {b.refundDue && (
+                      <span className="ml-1.5 rounded-full bg-rose-600 px-2 py-0.5 text-xs font-bold text-white">Refund due</span>
+                    )}
                   </td>
                   <td className="py-2.5 text-slate-600">
                     {formatDate(b.createdAt)} · {formatTime(b.createdAt)}

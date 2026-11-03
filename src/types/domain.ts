@@ -30,6 +30,7 @@ export interface Zone {
   code: string;
   label: string;
   price: Money;
+  fee: Money;
   seatsAvailable: number;
   isReservedSeating: boolean;
 }
@@ -104,6 +105,7 @@ export interface Ticket {
   passengerName: string;
   code: string;
   seatLabel?: string | null;
+  zoneLabel?: string | null;
 }
 
 export interface PassportDetails {
@@ -125,8 +127,10 @@ export interface BookingDraft {
   payment: PaymentMethod;
   total: Money;
   seats?: SeatPick[];
+  /** Count-based zone the traveller chose (VIP, room type...). Absent = the standard fare. */
+  zone?: Zone;
   reference?: string;
   tickets?: Ticket[];
 }
 
-export type Page = 'home' | 'results' | 'checkout' | 'confirmation' | 'planner' | 'ops' | 'admin';
+export type Page = 'home' | 'results' | 'checkout' | 'confirmation' | 'tickets' | 'planner' | 'ops' | 'admin';

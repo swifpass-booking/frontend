@@ -54,6 +54,12 @@ export default function Nav({ page, cartCount, onNavigate, onSignIn }: NavProps)
           >
             AI planner
           </button>
+          <button
+            onClick={() => onNavigate('tickets')}
+            className={`transition hover:text-white ${page === 'tickets' ? 'text-white' : ''}`}
+          >
+            My tickets
+          </button>
           <a href="#" className="transition hover:text-white">
             Help
           </a>
@@ -144,6 +150,12 @@ export default function Nav({ page, cartCount, onNavigate, onSignIn }: NavProps)
                   {cartCount}
                 </span>
               )}
+            </button>
+            <button
+              onClick={() => handleMobileNavigate('tickets')}
+              className={`rounded-lg px-3 py-2 text-left transition hover:bg-white/10 hover:text-white ${page === 'tickets' ? 'text-white' : ''}`}
+            >
+              My tickets
             </button>
             <button
               onClick={() => handleMobileNavigate('planner')}

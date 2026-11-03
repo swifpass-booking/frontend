@@ -25,7 +25,7 @@ export async function request<T>(path: string, { method = 'GET', body, token, he
   });
   const json = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error(json?.error?.message || 'Something went wrong. Try again.');
+    throw Object.assign(new Error(json?.error?.message || 'Something went wrong. Try again.'), { status: res.status });
   }
   return json as T;
 }
@@ -43,7 +43,31 @@ interface CreateBookingPayload {
   card?: { number: string; expiry: string; cvc: string };
   /** One seat label per traveller, in traveller order. Omit for general admission. */
   seats?: string[];
+  /** A count-based zone to buy from instead of the standard fare. Never together with `seats`. */
+  zoneId?: string;
 }
+
+/** One booking as the API returns it from /bookings/mine and /bookings/lookup. */
+export interface BookingRow {
+  bookingId: string;
+  reference: string;
+  status: string;
+  title: string;
+  providerName: string;
+  departsAt: string | null;
+  total: Money;
+  tickets: Ticket[];
+  upcoming?: boolean;
+  /** Set while the booking waits for payment: where to send the traveller to finish paying. */
+  gateway?: PaymentGateway | null;
+}
+
+/** The signed-in traveller's bookings, upcoming first. */
+export const myBookings = (token: string | null) => request<{ bookings: BookingRow[] }>('/bookings/mine', { token }).then((r) => r.bookings);
+
+/** How a guest (no account) gets their tickets back: the booking reference and the phone used to book. */
+export const lookupBooking = (reference: string, phone: string) =>
+  request<BookingRow>('/bookings/lookup', { method: 'POST', body: { reference, phone } });
 
 /** Redirect instructions for eSewa/Khalti — present when the booking is pending payment. */
 export interface PaymentGateway {
@@ -117,6 +141,7 @@ interface RawOffer {
   price: Money;
   fees: Money;
   seatsAvailable: number;
+  capacity: number;
   hasReservedSeating: boolean;
   zones: Zone[];
   details: Record<string, unknown>;
@@ -139,7 +164,7 @@ export function toOffer(raw: RawOffer): Offer {
     price: raw.price,
     fees: raw.fees,
     seatsAvailable: raw.seatsAvailable,
-    capacity: raw.seatsAvailable,
+    capacity: raw.capacity,
     hasReservedSeating: raw.hasReservedSeating,
     zones: raw.zones,
     attributes: raw.details,
@@ -152,6 +177,7 @@ interface RawCartItem {
   legIndex: number;
   offer: RawOffer;
   holdId: string | null;
+  zoneId: string;
   seatLabels: string[];
   qty: number;
   lineTotal: Money;

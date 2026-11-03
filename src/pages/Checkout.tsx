@@ -4,29 +4,34 @@ import { ModeIcon, ShieldIcon } from '../components/icons';
 import { createBooking } from '../api/rest';
 import type { AuthUser } from '../types/auth';
 import { redirectToGateway, savePendingCheckout } from '../lib/payment';
-import type { BookingDraft, Offer, PassportDetails, PaymentMethod, SeatPick } from '../types/domain';
+import type { BookingDraft, Offer, PassportDetails, PaymentMethod, SeatPick, Zone } from '../types/domain';
 import PassportScanner from '../components/PassportScanner';
 import { emptyPassport, isInternationalFlight, passportProblem } from '../lib/passport';
 import type { ScanResult } from '../lib/passport';
+
+// The demo card form only works against a backend started with DEMO_INSTANT_PAYMENT (see docker-compose.yml).
+const DEMO_CARD = import.meta.env.DEV || import.meta.env.VITE_DEMO_CARD === '1';
 
 const PAYMENT_METHODS: { key: PaymentMethod; label: string }[] = [
   { key: 'esewa', label: 'eSewa' },
   { key: 'khalti', label: 'Khalti' },
   { key: 'fonepay', label: 'FonePay' },
-  { key: 'card', label: 'Card' },
+  ...(DEMO_CARD ? [{ key: 'card' as const, label: 'Card' }] : []),
 ];
 
 interface CheckoutProps {
   offer: Offer | null;
   passengers: number;
   seats: SeatPick[];
+  /** A count-based zone to preselect (from a voice-agent hold). */
+  initialZoneId?: string;
   account: AuthUser | null;
   token: string | null;
   onBack: () => void;
   onConfirm: (booking: BookingDraft) => void;
 }
 
-export default function Checkout({ offer, passengers, seats, account, token, onBack, onConfirm }: CheckoutProps) {
+export default function Checkout({ offer, passengers, seats, initialZoneId, account, token, onBack, onConfirm }: CheckoutProps) {
   const [names, setNames] = useState<string[]>(
     Array.from({ length: passengers }, (_, i) => (i === 0 ? account?.fullName || '' : ''))
   );
@@ -41,6 +46,7 @@ export default function Checkout({ offer, passengers, seats, account, token, onB
   const [email, setEmail] = useState(account?.email || '');
   const [payment, setPayment] = useState<PaymentMethod>('esewa');
   const [card, setCard] = useState({ number: '', expiry: '', cvc: '' });
+  const [zoneId, setZoneId] = useState(initialZoneId ?? '');
   const [agreed, setAgreed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -88,8 +94,11 @@ export default function Checkout({ offer, passengers, seats, account, token, onB
 
   // Seat prices come from the zone each seat sits in (business vs economy, gold vs standard).
   const seated = seats.length === passengers;
-  const fees = seated ? seats.reduce((n, s) => n + s.fee.amount, 0) : offer.fees.amount * passengers;
-  const subtotal = seated ? seats.reduce((n, s) => n + s.price.amount, 0) : offer.price.amount * passengers;
+  // Zones without numbered seats (VIP stand, room type) are bought by count at the zone's own price.
+  const countZones = seated ? [] : offer.zones.filter((z) => !z.isReservedSeating);
+  const zone: Zone | undefined = countZones.find((z) => z.id === zoneId);
+  const fees = seated ? seats.reduce((n, s) => n + s.fee.amount, 0) : (zone?.fee ?? offer.fees).amount * passengers;
+  const subtotal = seated ? seats.reduce((n, s) => n + s.price.amount, 0) : (zone?.price ?? offer.price).amount * passengers;
   const total = { amount: subtotal + fees, currency: offer.price.currency };
 
   // One key per checkout screen: a double-tap or retry returns the same booking.
@@ -99,14 +108,14 @@ export default function Checkout({ offer, passengers, seats, account, token, onB
     setError('');
     setSubmitting(true);
     try {
-      const booking = await createBooking({ offer: offer as Offer, names, passports: international ? passportDetails : undefined, phone, email, payment, total, card: payment === 'card' ? card : undefined, seats: seated ? seats.map((s) => s.label) : undefined }, token, idempotencyKey.current);
+      const booking = await createBooking({ offer: offer as Offer, names, passports: international ? passportDetails : undefined, phone, email, payment, total, card: payment === 'card' ? card : undefined, seats: seated ? seats.map((s) => s.label) : undefined, zoneId: zone?.id }, token, idempotencyKey.current);
       if (booking.gateway) {
         // eSewa / Khalti: nothing is booked until the gateway confirms — go pay, come back via /payment/<provider>.
-        savePendingCheckout({ offer: offer as Offer, passengers, seats, names, phone, email, payment, total, reference: booking.reference });
+        savePendingCheckout({ offer: offer as Offer, passengers, seats, zone, names, phone, email, payment, total, reference: booking.reference });
         redirectToGateway(booking.gateway);
         return;
       }
-      onConfirm({ offer: offer as Offer, passengers, seats, names, phone, email, payment, total, ...booking });
+      onConfirm({ offer: offer as Offer, passengers, seats, zone, names, phone, email, payment, total, ...booking });
     } catch (err) {
       setError((err as Error).message || 'Payment could not be confirmed. Try again.');
     } finally {
@@ -151,6 +160,40 @@ export default function Checkout({ offer, passengers, seats, account, token, onB
               ))}
             </div>
           </section>
+
+          {countZones.length > 0 && (
+            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-card">
+              <h2 className="mb-4 text-base font-extrabold text-navy-950">Ticket type</h2>
+              <div className="flex flex-col gap-2">
+                {[{ id: '', label: 'Standard', price: offer.price, seatsAvailable: offer.seatsAvailable }, ...countZones].map((z) => (
+                  <label
+                    key={z.id}
+                    className={`flex items-center justify-between rounded-xl border px-3.5 py-3 text-sm ${
+                      zoneId === z.id ? 'border-brand-blue bg-brand-blue/5' : 'border-slate-200'
+                    } ${z.seatsAvailable < passengers ? 'opacity-40' : 'cursor-pointer'}`}
+                  >
+                    <span className="flex items-center gap-2.5 font-bold text-navy-950">
+                      <input
+                        type="radio"
+                        name="zone"
+                        checked={zoneId === z.id}
+                        disabled={z.seatsAvailable < passengers}
+                        onChange={() => {
+                          setZoneId(z.id);
+                          idempotencyKey.current = crypto.randomUUID(); // a different order must not replay the old booking
+                        }}
+                        className="accent-brand-blue"
+                      />
+                      {z.label}
+                    </span>
+                    <span className="text-slate-500">
+                      {formatMoney(z.price)} each{z.seatsAvailable < passengers && ' · sold out'}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </section>
+          )}
 
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-card">
             <h2 className="mb-4 text-base font-extrabold text-navy-950">Contact</h2>
@@ -272,7 +315,7 @@ export default function Checkout({ offer, passengers, seats, account, token, onB
 
           <div className="flex flex-col gap-2 py-4 text-sm">
             <div className="flex justify-between text-slate-500">
-              <span>Fare × {passengers}</span>
+              <span>{zone ? `${zone.label} × ${passengers}` : `Fare × ${passengers}`}</span>
               <span className="font-medium text-navy-950">{formatMoney({ amount: subtotal, currency: offer.price.currency })}</span>
             </div>
             <div className="flex justify-between text-slate-500">

@@ -19,9 +19,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { token, user } = JSON.parse(raw) as AuthSession;
       request<{ user: AuthUser }>('/auth/me', { token })
         .then((json) => setSession({ token, user: json.user }))
-        .catch(() => {
-          localStorage.removeItem(STORAGE_KEY);
-          setSession(null);
+        .catch((err: Error & { status?: number }) => {
+          // Only a rejected token ends the session; a network blip or a 5xx must not sign anyone out.
+          if (err.status === 401) {
+            localStorage.removeItem(STORAGE_KEY);
+            setSession(null);
+          }
         })
         .finally(() => setReady(true));
       setSession({ token, user });

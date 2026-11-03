@@ -7,6 +7,8 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
+# VITE_DEMO_CARD=1 shows the demo card form (only for a backend running in demo mode).
+ARG VITE_DEMO_CARD=
 RUN npm run build
 
 FROM nginx:1.27-alpine

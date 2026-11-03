@@ -8,6 +8,7 @@ export interface ScanEvent {
   accepted: boolean;
   passengerName: string | null;
   tripTitle?: string;
+  zoneLabel?: string | null;
   message?: string;
   scannedBy?: string;
   decidedAt: string;
@@ -20,5 +21,7 @@ export interface ScanVerdict {
   accepted: boolean;
   reason: RejectReason | null;
   passengerName: string | null;
+  /** Count-based zone the ticket was bought in (VIP...); null for the standard fare. */
+  zoneLabel?: string | null;
   message: string;
 }

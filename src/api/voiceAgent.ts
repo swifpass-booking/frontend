@@ -20,16 +20,3 @@ export async function postVoiceTurn(payload: VoiceTurnRequest): Promise<VoiceTur
   const res = await agentPost('/turns', 'application/json', JSON.stringify(payload), 'Could not reach the voice concierge.');
   return (await res.json().catch(() => ({}))) as VoiceTurnResponse;
 }
-
-/** POST a 16 kHz mono WAV to the SeamlessM4T STT endpoint; returns the transcript. */
-export async function transcribeAudio(wav: Blob, lang = 'en'): Promise<string> {
-  const res = await agentPost(`/stt?lang=${encodeURIComponent(lang)}`, 'audio/wav', wav, 'Could not transcribe audio.');
-  const json = await res.json().catch(() => ({}));
-  return (json.text as string) || '';
-}
-
-/** Synthesize `text` with SeamlessM4T TTS; returns a WAV blob. */
-export async function synthesizeSpeech(text: string, lang = 'en'): Promise<Blob> {
-  const res = await agentPost('/tts', 'application/json', JSON.stringify({ text, lang }), 'Could not synthesize speech.');
-  return res.blob();
-}

@@ -8,6 +8,7 @@ import Home from './pages/Home';
 import PaymentReturn from './pages/PaymentReturn';
 import Results from './pages/Results';
 import Checkout from './pages/Checkout';
+import MyTickets from './pages/MyTickets';
 import Confirmation from './pages/Confirmation';
 import AdminApp from './pages/AdminDashboard';
 import GateBoard from './pages/GateBoard';
@@ -23,6 +24,7 @@ function TravellerApp({ embedded = false }: { embedded?: boolean }) {
   const [selectedOffer, setSelectedOffer] = useState<Offer | null>(null);
   const [passengers, setPassengers] = useState(1);
   const [selectedSeats, setSelectedSeats] = useState<SeatPick[]>([]);
+  const [selectedZoneId, setSelectedZoneId] = useState('');
   const [booking, setBooking] = useState<BookingDraft | null>(null);
   const [authOpen, setAuthOpen] = useState(false);
   const { user, token } = useAuth();
@@ -39,9 +41,10 @@ function TravellerApp({ embedded = false }: { embedded?: boolean }) {
     window.scrollTo({ top: 0, behavior: 'instant' });
   }
 
-  function handleSelect(offer: Offer, offerPassengers?: number, seats?: SeatPick[]) {
+  function handleSelect(offer: Offer, offerPassengers?: number, seats?: SeatPick[], zoneId?: string) {
     setSelectedOffer(offer);
     setSelectedSeats(seats ?? []);
+    setSelectedZoneId(zoneId ?? '');
     if (offerPassengers) setPassengers(offerPassengers);
     setPage('checkout');
     window.scrollTo({ top: 0, behavior: 'instant' });
@@ -73,15 +76,29 @@ function TravellerApp({ embedded = false }: { embedded?: boolean }) {
       <Nav
         page={page}
         cartCount={selectedOffer && page !== 'confirmation' ? 1 : 0}
-        onNavigate={(p) => (p === 'home' ? goHome() : setPage(p))}
+        onNavigate={(p) => {
+          setReturning(null); // leaving a payment-return screen (e.g. for My tickets) must not leave it showing
+          if (p === 'home') goHome();
+          else setPage(p);
+        }}
         onSignIn={() => setAuthOpen(true)}
       />
 
-      {returning && <PaymentReturn provider={returning} onConfirmed={handlePaid} onBack={() => setReturning(null)} />}
+      {returning && <PaymentReturn
+          provider={returning}
+          onConfirmed={handlePaid}
+          onBack={() => setReturning(null)}
+          onTickets={() => {
+            setReturning(null);
+            setPage('tickets');
+          }}
+        />}
 
       {!returning && page === 'home' && <Home onSearch={handleSearch} onPlan={() => setPage('planner')} />}
 
       {page === 'planner' && <Planner />}
+
+      {page === 'tickets' && <MyTickets onSignIn={() => setAuthOpen(true)} />}
 
       {page === 'results' && criteria && (
         <Results criteria={criteria} onSearch={handleSearch} onSelect={handleSelect} />
@@ -92,6 +109,7 @@ function TravellerApp({ embedded = false }: { embedded?: boolean }) {
           offer={selectedOffer}
           passengers={passengers}
           seats={selectedSeats}
+          initialZoneId={selectedZoneId}
           account={user}
           token={token}
           onBack={() => setPage(criteria ? 'results' : 'home')}

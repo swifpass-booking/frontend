@@ -20,6 +20,7 @@ export default defineConfig({
       '/agent': {
         target: 'http://localhost:8100',
         changeOrigin: true,
+        ws: true, // /agent/ws/voice
         rewrite: (path) => path.replace(/^\/agent/, ''),
       },
     },
