@@ -227,12 +227,14 @@ export async function holdInCart(offer: Offer, qty: number, seats: SeatPick[], t
     ? offer.zones.find((z) => z.code === seats[0].zoneCode)
     : offer.zones.find((z) => z.price.amount === offer.price.amount) ?? offer.zones[0];
   if (!zone || seats.some((s) => s.zoneCode !== zone.code)) throw new Error('Pick seats from one section, or use the full checkout for a mix.');
-  const hold = await request<{ holdId: string }>('/holds', {
-    method: 'POST',
-    token,
-    body: { occurrenceId: offer.occurrenceId, zoneId: zone.id, seatLabels: seats.map((s) => s.label), qty },
-  });
-  const cart = await request<{ cartId: string }>('/carts', { method: 'POST', token, body: {} });
+  const [hold, cart] = await Promise.all([
+    request<{ holdId: string }>('/holds', {
+      method: 'POST',
+      token,
+      body: { occurrenceId: offer.occurrenceId, zoneId: zone.id, seatLabels: seats.map((s) => s.label), qty },
+    }),
+    request<{ cartId: string }>('/carts', { method: 'POST', token, body: {} }),
+  ]);
   await request(`/carts/${cart.cartId}/items`, { method: 'POST', token, body: { holdId: hold.holdId } });
   return cart.cartId;
 }

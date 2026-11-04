@@ -48,15 +48,20 @@ export default function CartCard({ cartId, onReview, onDismiss }: CartCardProps)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cartId]);
 
+  const expiresAt = cart ? new Date(cart.expiresAt).getTime() : 0;
   useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 1000);
+    if (!expiresAt) return;
+    const t = setInterval(() => {
+      setNow(Date.now());
+      if (Date.now() >= expiresAt) clearInterval(t); // stop re-rendering once the hold is dead
+    }, 1000);
     return () => clearInterval(t);
-  }, []);
+  }, [expiresAt]);
 
   const item = cart?.items[0];
   const offer = useMemo(() => (item ? toOffer(item.offer) : null), [item]);
   const international = isInternationalFlight(offer);
-  const left = cart ? Math.max(0, Math.floor((new Date(cart.expiresAt).getTime() - now) / 1000)) : 0;
+  const left = cart ? Math.max(0, Math.floor((expiresAt - now) / 1000)) : 0;
   const valid = names.every((n) => n.trim().length > 1) && /^\+?\d{7,15}$/.test(phone) && agreed && left > 0;
 
   async function pay(method: PaymentMethod) {
