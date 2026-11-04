@@ -1,18 +1,18 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { fetchCities } from '../../api/rest';
 import { MODES, isVenueMode } from '../../lib/offers';
-import VoiceOrb, { phaseLabel } from '../agent/VoiceOrb';
-import { useVoice } from '../../context/VoiceContext';
-import { ModeIcon, SearchIcon, CalendarIcon, UsersIcon, MapPinIcon } from '../icons';
+import { ModeIcon, MicIcon, SearchIcon, CalendarIcon, UsersIcon, MapPinIcon } from '../icons';
 import type { SearchCriteria, TravelMode } from '../../types/domain';
 
 interface SearchWidgetProps {
   initial?: Partial<SearchCriteria>;
   onSearch: (criteria: SearchCriteria) => void;
   compact?: boolean;
+  /** Mic tapped: the voice assistant lives on the planner page, so hand off there. */
+  onVoice?: () => void;
 }
 
-export default function SearchWidget({ initial, onSearch, compact = false }: SearchWidgetProps) {
+export default function SearchWidget({ initial, onSearch, compact = false, onVoice }: SearchWidgetProps) {
   const [mode, setMode] = useState<TravelMode>(initial?.mode || 'air');
   const [from, setFrom] = useState(initial?.from || '');
   const [to, setTo] = useState(initial?.to || '');
@@ -20,7 +20,6 @@ export default function SearchWidget({ initial, onSearch, compact = false }: Sea
   const [date, setDate] = useState(initial?.date || new Date().toISOString().slice(0, 10));
   const [passengers, setPassengers] = useState(initial?.passengers || 1);
 
-  const { phase, active } = useVoice();
   const [loaded, setLoaded] = useState<string[]>([]);
   useEffect(() => {
     let cancelled = false;
@@ -116,10 +115,15 @@ export default function SearchWidget({ initial, onSearch, compact = false }: Sea
         </Field>
 
         <div className="flex items-center gap-2 sm:mt-[22px]">
-          <div className="flex flex-col items-center">
-            <VoiceOrb />
-            {active && <span className="mt-0.5 text-[10px] font-semibold text-navy-700/70">{phaseLabel(phase)}</span>}
-          </div>
+          <button
+            type="button"
+            onClick={onVoice}
+            title="Talk to the booking assistant"
+            aria-label="Open the AI planner"
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-brand-blue text-white shadow-sm transition hover:bg-blue-700"
+          >
+            <MicIcon width={20} height={20} />
+          </button>
           <button
             type="submit"
             className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-brand-blue px-6 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700"

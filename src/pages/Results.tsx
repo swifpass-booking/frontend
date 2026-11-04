@@ -18,9 +18,10 @@ interface ResultsProps {
   criteria: SearchCriteria;
   onSearch: (criteria: SearchCriteria) => void;
   onSelect: (offer: Offer, passengers?: number, seats?: SeatPick[]) => void;
+  onVoice?: () => void;
 }
 
-export default function Results({ criteria, onSearch, onSelect }: ResultsProps) {
+export default function Results({ criteria, onSearch, onSelect, onVoice }: ResultsProps) {
   const [sort, setSort] = useState<SortKey>('recommended');
   const [maxPrice, setMaxPrice] = useState<number | null>(null);
 
@@ -72,7 +73,7 @@ export default function Results({ criteria, onSearch, onSelect }: ResultsProps) 
     <div className="bg-slate-50">
       <div className="border-b border-slate-200 bg-white py-4">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <SearchWidget key={JSON.stringify(criteria)} initial={criteria} onSearch={onSearch} compact />
+          <SearchWidget key={JSON.stringify(criteria)} initial={criteria} onSearch={onSearch} onVoice={onVoice} compact />
         </div>
       </div>
 

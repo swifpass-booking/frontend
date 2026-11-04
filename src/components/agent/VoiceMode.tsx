@@ -5,7 +5,7 @@ import { phaseLabel } from './VoiceOrb';
 import LiveMap from '../map/LiveMap';
 
 /** Glowing sphere that reacts to the mic level (listening), breathes (thinking) and pulses (speaking). */
-function Orb({ phase, size }: { phase: VoicePhase; size: number }) {
+export function Orb({ phase, size }: { phase: VoicePhase; size: number }) {
   const { levelRef } = useVoice();
   const ref = useRef<HTMLDivElement>(null);
 

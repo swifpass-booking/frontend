@@ -1,7 +1,7 @@
 /** Thin fetch wrapper for the real (non-mock) Django backend: auth, bookings, admin, carts.
  *  The voice concierge is a separate service — see api/voiceAgent.ts. */
 import type { AdminBookingRow, AdminOccurrenceRow, AdminStats, AdminUserRow } from '../types/admin';
-import type { BookingDraft, Money, Offer, PassportDetails, PaymentMethod, Place, SearchCriteria, SeatMap, Ticket, Zone } from '../types/domain';
+import type { BookingDraft, Money, Offer, PassportDetails, PaymentMethod, Place, SearchCriteria, SeatMap, SeatPick, Ticket, Zone } from '../types/domain';
 import { isVenueMode } from '../lib/offers';
 import type { ScanCounts, ScanEvent, ScanVerdict } from '../types/gate';
 
@@ -172,7 +172,7 @@ export function toOffer(raw: RawOffer): Offer {
   };
 }
 
-interface RawCartItem {
+export interface RawCartItem {
   cartItemId: string;
   legIndex: number;
   offer: RawOffer;
@@ -183,7 +183,7 @@ interface RawCartItem {
   lineTotal: Money;
 }
 
-interface RawCart {
+export interface RawCart {
   cartId: string;
   items: RawCartItem[];
   subtotal: Money;
@@ -197,6 +197,16 @@ export const getCart = (cartId: string, token: string | null) => request<RawCart
 export const getSeatMap = (occurrenceId: string) =>
   request<SeatMap>(`/occurrences/${encodeURIComponent(occurrenceId)}/seatmap`);
 
+/** The seats a cart item holds, as the SeatPicks checkout expects (undefined for count-based zones). */
+export async function heldSeats(item: RawCartItem): Promise<SeatPick[] | undefined> {
+  if (!item.seatLabels.length) return undefined;
+  const map = await getSeatMap(item.offer.occurrenceId);
+  const held = new Set(item.seatLabels);
+  return map.sections.flatMap((s) =>
+    s.rows.flatMap((r) => r.seats.flatMap((x) => (x && held.has(x.label) ? [{ label: x.label, zoneCode: s.code, zoneLabel: s.label, price: s.price, fee: s.fee }] : [])))
+  );
+}
+
 /** Real backend search (POST /v1/search) — the same endpoint the voice agent's search_offers tool calls. */
 export async function searchOffersApi(c: SearchCriteria): Promise<Offer[]> {
   const isEvent = isVenueMode(c.mode);
@@ -209,6 +219,22 @@ export async function searchOffersApi(c: SearchCriteria): Promise<Offer[]> {
     },
   });
   return res.offers.map(toOffer);
+}
+
+/** Hold seats (or a headcount) on an offer and put them in a fresh cart. Needs a signed-in traveller. */
+export async function holdInCart(offer: Offer, qty: number, seats: SeatPick[], token: string | null): Promise<string> {
+  const zone = seats.length
+    ? offer.zones.find((z) => z.code === seats[0].zoneCode)
+    : offer.zones.find((z) => z.price.amount === offer.price.amount) ?? offer.zones[0];
+  if (!zone || seats.some((s) => s.zoneCode !== zone.code)) throw new Error('Pick seats from one section, or use the full checkout for a mix.');
+  const hold = await request<{ holdId: string }>('/holds', {
+    method: 'POST',
+    token,
+    body: { occurrenceId: offer.occurrenceId, zoneId: zone.id, seatLabels: seats.map((s) => s.label), qty },
+  });
+  const cart = await request<{ cartId: string }>('/carts', { method: 'POST', token, body: {} });
+  await request(`/carts/${cart.cartId}/items`, { method: 'POST', token, body: { holdId: hold.holdId } });
+  return cart.cartId;
 }
 
 /** Cities that have scheduled trips/events for a mode — fills the search form's pickers. */

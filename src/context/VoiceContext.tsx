@@ -5,7 +5,7 @@
  * The mic button lives in the search card; VoiceMode.tsx renders this state.
  */
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type MutableRefObject, type ReactNode } from 'react';
-import { getCart, getSeatMap, toOffer } from '../api/rest';
+import { getCart, heldSeats, holdInCart, toOffer } from '../api/rest';
 import { postVoiceTurn } from '../api/voiceAgent';
 import { openVoiceStream, type VoiceStream } from '../lib/voiceStream';
 import { isVenueMode } from '../lib/offers';
@@ -19,6 +19,8 @@ interface LogEntry {
   text: string;
   /** True for replies that arrived this page load — they get the typing animation. */
   live?: boolean;
+  /** The search the agent ran for this reply: the chat shows its results as cards. */
+  search?: SearchCriteria;
 }
 
 const STORE_KEY = 'swiftpass-voice-chat-v1';
@@ -63,6 +65,8 @@ interface VoiceValue {
   stop: () => void;
   close: () => void;
   send: (text: string) => void;
+  /** Hold the picked seats from a result card and show the cart in the chat. Throws if not signed in. */
+  holdOffer: (offer: Offer, qty: number, seats: SeatPick[]) => Promise<void>;
   reviewInCheckout: () => void;
   dismissCart: () => void;
   startOver: () => void;
@@ -75,8 +79,12 @@ const DISMISS_WORDS = /\b(cancel|no thanks|never mind|not now)\b/i;
 
 let speakToken = 0; // bumped whenever browser speech is stopped or restarted
 
+let speakingAudio: HTMLAudioElement | null = null;
+
 function stopSpeaking() {
   speakToken++;
+  speakingAudio?.pause();
+  speakingAudio = null;
   if ('speechSynthesis' in window) window.speechSynthesis.cancel();
 }
 
@@ -91,14 +99,34 @@ function browserSpeak(text: string): Promise<void> {
   });
 }
 
+/** The server's TTS voice (Orpheus) when it has one; otherwise the browser voice. */
+async function serverSpeak(text: string, token: number): Promise<void> {
+  try {
+    const res = await fetch('/agent/tts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, lang: 'en' }) });
+    if (!res.ok) throw new Error('no server tts');
+    const url = URL.createObjectURL(await res.blob());
+    if (token !== speakToken) return URL.revokeObjectURL(url); // the user talked over it while it rendered
+    const audio = new Audio(url);
+    speakingAudio = audio;
+    await new Promise<void>((resolve) => {
+      audio.onended = () => resolve();
+      audio.onerror = () => resolve();
+      audio.onpause = () => resolve();
+      void audio.play().catch(() => resolve());
+    });
+    URL.revokeObjectURL(url);
+  } catch {
+    if (token === speakToken) await browserSpeak(text);
+  }
+}
+
 interface ProviderProps {
   token: string | null;
   onReviewOffer: (offer: Offer, passengers: number, seats?: SeatPick[], zoneId?: string) => void;
-  onSearch: (criteria: SearchCriteria) => void;
   children: ReactNode;
 }
 
-export function VoiceProvider({ token, onReviewOffer, onSearch, children }: ProviderProps) {
+export function VoiceProvider({ token, onReviewOffer, children }: ProviderProps) {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(false);
   const [phase, setPhase] = useState<VoicePhase>('idle');
@@ -115,8 +143,6 @@ export function VoiceProvider({ token, onReviewOffer, onSearch, children }: Prov
   const lastReplyRef = useRef('');
   const reviewRef = useRef(onReviewOffer);
   reviewRef.current = onReviewOffer;
-  const searchRef = useRef(onSearch);
-  searchRef.current = onSearch;
   const tokenRef = useRef(token);
   tokenRef.current = token;
   cartRef.current = cartId;
@@ -167,7 +193,7 @@ export function VoiceProvider({ token, onReviewOffer, onSearch, children }: Prov
     stopSpeaking();
     const token = speakToken;
     setPhase('speaking');
-    void browserSpeak(text).then(() => {
+    void serverSpeak(text, token).then(() => {
       if (token === speakToken) setPhase(activeRef.current ? 'listening' : 'idle');
     });
   }
@@ -212,8 +238,7 @@ export function VoiceProvider({ token, onReviewOffer, onSearch, children }: Prov
             lastReplyRef.current = r.reply;
             if (r.cartId) setCartId(r.cartId);
             if (r.trackOccurrenceId) setTrackId(r.trackOccurrenceId);
-            if (r.search) searchRef.current(toCriteria(r.search));
-            setLog((l) => [...l, { role: 'assistant', text: r.reply, live: true }]);
+            setLog((l) => [...l, { role: 'assistant', text: r.reply, live: true, search: r.search ? toCriteria(r.search) : undefined }]);
           },
           onPlaybackStart: () => setPhase('speaking'),
           onPlaybackEnd: () => setPhase('listening'),
@@ -253,18 +278,19 @@ export function VoiceProvider({ token, onReviewOffer, onSearch, children }: Prov
     if (stream) return stream.sendText(text);
     // Mic muted: no socket, so use the plain HTTP turn and the browser voice.
     let reply: string;
+    let search: SearchCriteria | undefined;
     try {
       const r = await postVoiceTurn({ sessionId: sessionRef.current, message: text, token: tokenRef.current });
       sessionRef.current = r.sessionId;
       reply = r.reply;
       if (r.cartId) setCartId(r.cartId);
       if (r.trackOccurrenceId) setTrackId(r.trackOccurrenceId);
-      if (r.search) searchRef.current(toCriteria(r.search));
+      search = r.search ? toCriteria(r.search) : undefined;
     } catch (err) {
       reply = (err as Error).message || 'Something went wrong talking to the assistant.';
       setError(reply);
     }
-    setLog((l) => [...l, { role: 'assistant', text: reply, live: true }]);
+    setLog((l) => [...l, { role: 'assistant', text: reply, live: true, search }]);
     sayLocally(reply);
   }
 
@@ -280,16 +306,7 @@ export function VoiceProvider({ token, onReviewOffer, onSearch, children }: Prov
         return;
       }
       // Hand over exactly what was held and quoted: the seats, or the count-based zone.
-      let seats: SeatPick[] | undefined;
-      if (first.seatLabels.length) {
-        const map = await getSeatMap(first.offer.occurrenceId);
-        const held = new Set(first.seatLabels);
-        seats = map.sections.flatMap((s) =>
-          s.rows.flatMap((r) =>
-            r.seats.flatMap((x) => (x && held.has(x.label) ? [{ label: x.label, zoneCode: s.code, zoneLabel: s.label, price: s.price, fee: s.fee }] : []))
-          )
-        );
-      }
+      const seats = await heldSeats(first);
       reviewRef.current(toOffer(first.offer), first.qty, seats, seats ? undefined : first.zoneId);
       setOpen(false);
     } catch (err) {
@@ -313,7 +330,6 @@ export function VoiceProvider({ token, onReviewOffer, onSearch, children }: Prov
         if (!supported) return;
         activeRef.current = true;
         setActive(true);
-        setOpen(true);
         stopSpeaking();
         void connect();
       },
@@ -325,6 +341,10 @@ export function VoiceProvider({ token, onReviewOffer, onSearch, children }: Prov
       send: (text) => {
         stopSpeaking();
         void sendTyped(text);
+      },
+      holdOffer: async (offer, qty, seats) => {
+        if (!tokenRef.current) throw new Error('Sign in to hold seats.');
+        setCartId(await holdInCart(offer, qty, seats, tokenRef.current));
       },
       reviewInCheckout: () => void reviewInCheckout(),
       dismissCart: () => setCartId(null),

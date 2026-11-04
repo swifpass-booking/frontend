@@ -1,9 +1,17 @@
 import SearchWidget from '../components/search/SearchWidget';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { fetchFeatured } from '../api/rest';
 import { formatMoney } from '../lib/format';
-import { ModeIcon, ShieldIcon, ClockIcon, CheckIcon } from '../components/icons';
+import { ModeIcon, ShieldIcon, ClockIcon, CheckIcon, MicIcon, SendIcon } from '../components/icons';
+import { Orb } from '../components/agent/VoiceMode';
+import { useVoice } from '../context/VoiceContext';
 import type { Offer, SearchCriteria } from '../types/domain';
+
+const PROMPTS = [
+  'Plan a 3-day trip from Kathmandu to Pokhara under NPR 40,000',
+  'Find a lake-view hotel in Pokhara this weekend',
+  'Weekend jungle safari in Chitwan',
+];
 
 const HIGHLIGHTS = [
   { icon: ShieldIcon, title: 'Tamper-proof tickets', body: 'Every QR is server-signed and device-bound — screenshots and reshares are rejected at the gate.' },
@@ -11,8 +19,20 @@ const HIGHLIGHTS = [
   { icon: CheckIcon, title: 'One checkout, every leg', body: 'Flights, buses, hotels, resorts, event halls and tickets — one booking, one QR per guest.' },
 ];
 
-export default function Home({ onSearch, onPlan }: { onSearch: (criteria: SearchCriteria) => void; onPlan?: () => void }) {
+export default function Home({ onSearch, onPlan, onVoice }: { onSearch: (criteria: SearchCriteria) => void; onPlan?: () => void; onVoice?: () => void }) {
   const [featured, setFeatured] = useState<Offer[]>([]);
+  const [draft, setDraft] = useState('');
+  const { send } = useVoice();
+
+  // The planner page is where the conversation lives: hand the question over and go there.
+  function plan(text: string) {
+    send(text);
+    onPlan?.();
+  }
+  function ask(e: FormEvent) {
+    e.preventDefault();
+    if (draft.trim()) plan(draft.trim());
+  }
   useEffect(() => {
     let cancelled = false;
     fetchFeatured()
@@ -25,37 +45,36 @@ export default function Home({ onSearch, onPlan }: { onSearch: (criteria: Search
 
   return (
     <div>
-      <section className="relative overflow-hidden bg-navy-950">
-        <div
-          className="absolute inset-0 opacity-40"
-          style={{
-            background:
-              'radial-gradient(60% 60% at 15% 10%, rgba(26,86,219,0.55), transparent), radial-gradient(50% 50% at 90% 30%, rgba(245,166,35,0.25), transparent)',
-          }}
-        />
-        <div className="relative mx-auto max-w-7xl px-4 pb-16 pt-14 sm:px-6 sm:pt-20">
-          <p className="mb-3 inline-block rounded-full bg-white/10 px-3 py-1 text-xs font-semibold tracking-wide text-white/80">
-            Flights · Buses · Trains · Events · Hotels · Resorts · Halls — one booking
-          </p>
-          <h1 className="max-w-2xl text-3xl font-extrabold leading-tight text-white sm:text-5xl">
-            Go anywhere in Nepal. <span className="text-brand-amber">Book it once.</span>
-          </h1>
-          <p className="mt-3 max-w-xl text-[15px] text-navy-100/80">
-            Search every mode of transport and live event in one place, hold your
-            seat instantly, and carry one secure ticket through the whole trip.
-          </p>
+      <section className="bg-white">
+        <div className="mx-auto flex max-w-3xl flex-col items-center px-4 pb-10 pt-14 sm:px-6 sm:pt-20">
+          <Orb phase="idle" size={64} />
+          <h1 className="mb-8 mt-7 text-center text-3xl font-medium text-navy-950 sm:text-4xl">Where to next?</h1>
 
-          <div className="mt-8">
-            <SearchWidget onSearch={onSearch} />
-          </div>
-          {onPlan && (
-            <button
-              onClick={onPlan}
-              className="mt-4 rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white ring-1 ring-white/20 transition hover:bg-white/20"
-            >
-              ✨ Not sure where to start? Let the AI planner build your trip
+          <form onSubmit={ask} className="flex w-full items-center gap-2 rounded-full bg-slate-100 py-2 pl-5 pr-2 ring-1 ring-slate-200">
+            <input
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              placeholder="Ask the AI planner — flights, buses, hotels, events…"
+              className="min-w-0 flex-1 bg-transparent text-[15px] text-navy-950 placeholder:text-slate-400 focus:outline-none"
+            />
+            <button type="button" onClick={onVoice} title="Talk to the booking assistant" aria-label="Open the AI planner" className="grid h-10 w-10 place-items-center rounded-full text-slate-500 hover:text-navy-950">
+              <MicIcon width={20} height={20} />
             </button>
-          )}
+            <button disabled={!draft.trim()} aria-label="Send" className="grid h-10 w-10 place-items-center rounded-full bg-navy-950 text-white transition disabled:bg-slate-300 disabled:text-slate-100">
+              <SendIcon width={20} height={20} />
+            </button>
+          </form>
+          <div className="mt-5 flex flex-wrap justify-center gap-2">
+            {PROMPTS.map((t) => (
+              <button key={t} onClick={() => plan(t)} className="rounded-full border border-slate-200 px-4 py-2 text-sm text-slate-600 transition hover:bg-slate-50">
+                {t}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="mx-auto max-w-7xl px-4 pb-14 sm:px-6">
+          <p className="mb-3 text-center text-sm font-semibold text-slate-400">Or search directly</p>
+          <SearchWidget onSearch={onSearch} onVoice={onVoice} />
         </div>
       </section>
 

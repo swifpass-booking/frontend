@@ -2,7 +2,6 @@ import { useCallback, useState } from 'react';
 import Nav from './components/layout/Nav';
 import Footer from './components/layout/Footer';
 import AuthModal from './components/auth/AuthModal';
-import VoiceMode from './components/agent/VoiceMode';
 import { VoiceProvider } from './context/VoiceContext';
 import Home from './pages/Home';
 import PaymentReturn from './pages/PaymentReturn';
@@ -27,12 +26,23 @@ function TravellerApp({ embedded = false }: { embedded?: boolean }) {
   const [selectedZoneId, setSelectedZoneId] = useState('');
   const [booking, setBooking] = useState<BookingDraft | null>(null);
   const [authOpen, setAuthOpen] = useState(false);
+  const [voiceStart, setVoiceStart] = useState(false); // planner opened from a mic button: begin listening
   const { user, token } = useAuth();
   // eSewa / Khalti send the browser back to /payment/<provider>?... — confirm it before anything else.
   const [returning, setReturning] = useState<'esewa' | 'khalti' | 'fonepay' | null>(() => {
     const m = window.location.pathname.match(/^\/payment\/(esewa|khalti|fonepay)$/);
     return m ? (m[1] as 'esewa' | 'khalti' | 'fonepay') : null;
   });
+
+  // The AI planner is a standalone chat screen (own header, no site nav/footer) except inside the admin panel.
+  const fullBleed = page === 'planner' && !embedded && !returning;
+
+  function openPlanner(voice: boolean) {
+    setVoiceStart(voice);
+    setReturning(null);
+    setPage('planner');
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }
 
   function handleSearch(c: SearchCriteria) {
     setCriteria(c);
@@ -71,18 +81,19 @@ function TravellerApp({ embedded = false }: { embedded?: boolean }) {
   }
 
   return (
-    <VoiceProvider token={token} onReviewOffer={handleSelect} onSearch={handleSearch}>
+    <VoiceProvider token={token} onReviewOffer={handleSelect}>
     <div className={`${embedded ? '' : 'min-h-screen '}bg-slate-50 font-sans text-navy-950`}>
-      <Nav
+      {!fullBleed && <Nav
         page={page}
         cartCount={selectedOffer && page !== 'confirmation' ? 1 : 0}
         onNavigate={(p) => {
+          setVoiceStart(false);
           setReturning(null); // leaving a payment-return screen (e.g. for My tickets) must not leave it showing
           if (p === 'home') goHome();
           else setPage(p);
         }}
         onSignIn={() => setAuthOpen(true)}
-      />
+      />}
 
       {returning && <PaymentReturn
           provider={returning}
@@ -94,14 +105,24 @@ function TravellerApp({ embedded = false }: { embedded?: boolean }) {
           }}
         />}
 
-      {!returning && page === 'home' && <Home onSearch={handleSearch} onPlan={() => setPage('planner')} />}
+      {!returning && page === 'home' && <Home onSearch={handleSearch} onPlan={() => openPlanner(false)} onVoice={() => openPlanner(true)} />}
 
-      {page === 'planner' && <Planner />}
+      {page === 'planner' && (
+        <Planner
+          onNavigate={(p) => {
+            setVoiceStart(false);
+            if (p === 'home') goHome();
+            else setPage(p);
+          }}
+          onSignIn={() => setAuthOpen(true)}
+          autoStart={voiceStart}
+        />
+      )}
 
       {page === 'tickets' && <MyTickets onSignIn={() => setAuthOpen(true)} />}
 
       {page === 'results' && criteria && (
-        <Results criteria={criteria} onSearch={handleSearch} onSelect={handleSelect} />
+        <Results criteria={criteria} onSearch={handleSearch} onSelect={handleSelect} onVoice={() => openPlanner(true)} />
       )}
 
       {page === 'checkout' && (
@@ -119,11 +140,9 @@ function TravellerApp({ embedded = false }: { embedded?: boolean }) {
 
       {page === 'confirmation' && <Confirmation booking={booking} onDone={goHome} />}
 
-      {!embedded && <Footer />}
+      {!embedded && !fullBleed && <Footer />}
 
       {authOpen && <AuthModal onClose={() => setAuthOpen(false)} />}
-
-      <VoiceMode />
     </div>
     </VoiceProvider>
   );
