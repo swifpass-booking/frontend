@@ -1,6 +1,5 @@
 import { useState, type FormEvent } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { TicketIcon } from '../icons';
 
 type Mode = 'login' | 'register';
 
@@ -41,9 +40,7 @@ export default function AuthModal({ onClose }: { onClose: () => void }) {
         className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-popover"
       >
         <div className="mb-5 flex items-center gap-2">
-          <span className="grid h-9 w-9 place-items-center rounded-lg bg-brand-blue text-white">
-            <TicketIcon className="h-4.5 w-4.5" width={18} height={18} />
-          </span>
+          <img src="/logo.png" alt="" className="h-9 w-9 object-contain" />
           <div>
             <p className="text-base font-extrabold text-navy-950">
               {mode === 'login' ? 'Sign in to Swiftpass' : 'Create your account'}

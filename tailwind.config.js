@@ -15,7 +15,7 @@ export default {
           950: '#0A1730',
         },
         brand: {
-          blue: '#1A56DB',
+          blue: '#0B63E5',
           amber: '#F5A623',
         },
       },

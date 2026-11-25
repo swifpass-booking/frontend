@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useVoice } from '../context/VoiceContext';
 import { useAuth } from '../context/AuthContext';
-import { CloseIcon, MicIcon, SendIcon, TicketIcon } from '../components/icons';
+import { CloseIcon, MicIcon, SendIcon } from '../components/icons';
 import { Orb } from '../components/agent/VoiceMode';
 import SearchResults from '../components/agent/SearchResults';
 import CartCard from '../components/agent/CartCard';
@@ -145,9 +145,7 @@ export default function Planner({ onNavigate, onSignIn, autoStart }: PlannerProp
     <div className="flex h-screen flex-col bg-white text-navy-950">
       <header className="flex items-center justify-between px-4 py-3 sm:px-6">
         <button onClick={() => onNavigate('home')} className="flex items-center gap-2 text-lg font-extrabold tracking-tight text-navy-950">
-          <span className="grid h-8 w-8 place-items-center rounded-lg bg-brand-blue">
-            <TicketIcon width={18} height={18} />
-          </span>
+          <img src="/logo.png" alt="" className="h-8 w-8 object-contain" />
           Swiftpass
         </button>
         <nav className="flex items-center gap-1 rounded-full bg-slate-100 p-1 text-sm font-medium">

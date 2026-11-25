@@ -1,6 +1,5 @@
 import { useState, type FormEvent } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { TicketIcon } from '../components/icons';
 
 /** Sign-in for /admin and /ops. Staff land in their own console after signing in; the traveller site never links here. */
 export default function StaffLogin({ area }: { area: 'admin' | 'ops' }) {
@@ -27,9 +26,7 @@ export default function StaffLogin({ area }: { area: 'admin' | 'ops' }) {
     <div className="grid min-h-screen place-items-center bg-navy-950 px-4">
       <form onSubmit={submit} className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-popover">
         <div className="mb-5 flex items-center gap-2 text-lg font-extrabold text-navy-950">
-          <span className="grid h-8 w-8 place-items-center rounded-lg bg-brand-blue text-white">
-            <TicketIcon className="h-4 w-4" width={18} height={18} />
-          </span>
+          <img src="/logo.png" alt="" className="h-8 w-8 object-contain" />
           Swiftpass {area === 'admin' ? 'Admin' : 'Operator console'}
         </div>
         <label className="mb-3 block">

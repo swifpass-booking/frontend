@@ -18,7 +18,7 @@ const vehicleIcon = (heading: number | null) =>
     className: '',
     iconSize: [34, 34],
     iconAnchor: [17, 17],
-    html: `<span style="display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:#1a56db;border:3px solid #fff;box-shadow:0 0 0 6px rgba(26,86,219,.25),0 2px 6px rgba(0,0,0,.4)">
+    html: `<span style="display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:#0b63e5;border:3px solid #fff;box-shadow:0 0 0 6px rgba(11,99,229,.25),0 2px 6px rgba(0,0,0,.4)">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="#fff" style="transform:rotate(${heading ?? 0}deg)"><path d="M12 2l7 18-7-4-7 4z"/></svg></span>`,
   });
 
@@ -103,7 +103,7 @@ export default function LiveMap({ occurrenceId, height = 320, onClose }: LiveMap
     const done: L.LatLngTuple[] = [...data.route.slice(0, idx + 1), p];
     const todo: L.LatLngTuple[] = [p, ...data.route.slice(idx + 1)];
     layers.current.todo = L.polyline(todo, { color: '#94a3b8', weight: 4, dashArray: data.routeSource === 'road' ? undefined : '8 8' }).addTo(m);
-    layers.current.done = L.polyline(done, { color: '#1a56db', weight: 5 }).addTo(m);
+    layers.current.done = L.polyline(done, { color: '#0b63e5', weight: 5 }).addTo(m);
     if (layers.current.vehicle) {
       layers.current.vehicle.setLatLng(p).setIcon(vehicleIcon(data.position.heading));
     } else {
