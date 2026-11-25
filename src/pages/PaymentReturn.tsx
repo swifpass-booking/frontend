@@ -4,7 +4,7 @@ import { takePendingCheckout } from '../lib/payment';
 import type { BookingDraft } from '../types/domain';
 
 interface PaymentReturnProps {
-  provider: 'esewa' | 'khalti' | 'fonepay';
+  provider: 'esewa' | 'khalti' | 'fonepay' | 'stripe';
   onConfirmed: (booking: BookingDraft) => void;
   onBack: () => void;
   onTickets: () => void;
@@ -26,6 +26,7 @@ export default function PaymentReturn({ provider, onConfirmed, onBack, onTickets
       query: provider === 'fonepay' ? Object.fromEntries(q) : undefined,
       data: q.get('data') ?? undefined,
       pidx: q.get('pidx') ?? undefined,
+      sessionId: q.get('session_id') ?? undefined,
       failed: q.has('failed') || undefined,
       ref: q.get('ref') ?? undefined,
     })
@@ -57,7 +58,7 @@ export default function PaymentReturn({ provider, onConfirmed, onBack, onTickets
     return (
       <div className="mx-auto max-w-md px-4 py-24 text-center">
         <div className="voice-spin mx-auto h-10 w-10 rounded-full border-4 border-slate-200 border-t-brand-blue" />
-        <p className="mt-5 font-bold text-navy-950">Confirming your {{ esewa: 'eSewa', khalti: 'Khalti', fonepay: 'Fonepay' }[provider]} payment…</p>
+        <p className="mt-5 font-bold text-navy-950">Confirming your {{ esewa: 'eSewa', khalti: 'Khalti', fonepay: 'Fonepay', stripe: 'Stripe' }[provider]} payment…</p>
         <p className="mt-1 text-sm text-slate-500">Please don't close this page.</p>
       </div>
     );

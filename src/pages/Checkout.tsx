@@ -16,6 +16,7 @@ const PAYMENT_METHODS: { key: PaymentMethod; label: string }[] = [
   { key: 'esewa', label: 'eSewa' },
   { key: 'khalti', label: 'Khalti' },
   { key: 'fonepay', label: 'FonePay' },
+  { key: 'stripe', label: 'Stripe' },
   ...(DEMO_CARD ? [{ key: 'card' as const, label: 'Card' }] : []),
 ];
 
@@ -258,6 +259,14 @@ export default function Checkout({ offer, passengers, seats, initialZoneId, acco
             {payment === 'fonepay' && (
               <p className="mt-4 rounded-xl bg-rose-50 px-3.5 py-3 text-xs leading-relaxed text-rose-900">
                 <span className="font-bold">Fonepay test mode.</span> You'll be sent to Fonepay's dev gateway to pay with a test account. No real money moves.
+              </p>
+            )}
+
+            {payment === 'stripe' && (
+              <p className="mt-4 rounded-xl bg-indigo-50 px-3.5 py-3 text-xs leading-relaxed text-indigo-900">
+                <span className="font-bold">Stripe test mode.</span> You'll be sent to Stripe Checkout (or the local simulator when no Stripe key is set). Visa{' '}
+                <code className="font-bold">4242 4242 4242 4242</code>; decline <code className="font-bold">4000 0000 0000 0002</code>; 3-D Secure{' '}
+                <code className="font-bold">4000 0025 0000 3155</code>; no funds <code className="font-bold">4000 0000 0000 9995</code>. Any future expiry, any CVC. No real money moves.
               </p>
             )}
 

@@ -71,7 +71,7 @@ export const lookupBooking = (reference: string, phone: string) =>
 
 /** Redirect instructions for eSewa/Khalti — present when the booking is pending payment. */
 export interface PaymentGateway {
-  provider: 'esewa' | 'khalti' | 'fonepay';
+  provider: 'esewa' | 'khalti' | 'fonepay' | 'stripe';
   method: 'GET' | 'POST';
   url: string;
   fields?: Record<string, string>;
@@ -247,7 +247,7 @@ export const fetchCities = (mode: Offer['mode']) =>
 export const fetchFeatured = () => request<{ offers: RawOffer[] }>('/featured').then((r) => r.offers.map(toOffer));
 
 /** Ask the backend to confirm a gateway payment (it re-checks with eSewa/Khalti before issuing tickets). */
-export const verifyPayment = (params: { provider: 'esewa' | 'khalti' | 'fonepay'; query?: Record<string, string>; data?: string; pidx?: string; failed?: boolean; ref?: string }) =>
+export const verifyPayment = (params: { provider: 'esewa' | 'khalti' | 'fonepay' | 'stripe'; query?: Record<string, string>; data?: string; pidx?: string; sessionId?: string; failed?: boolean; ref?: string }) =>
   request<CreateBookingResponse>('/payments/verify', { method: 'POST', body: params });
 
 export interface Tracking {
@@ -269,3 +269,8 @@ export interface Tracking {
 }
 
 export const getTracking = (occurrenceId: string) => request<Tracking>(`/occurrences/${encodeURIComponent(occurrenceId)}/tracking`);
+
+export type StripeSimOutcome = string;
+/** Dev only: end a simulated Stripe session a given way. Resolves with where to go next; declines reject with Stripe's message. */
+export const simulateStripe = (sessionId: string, outcome: StripeSimOutcome) =>
+  request<{ next: 'return' | 'cancel' | 'home' }>('/dev/stripe/simulate', { method: 'POST', body: { sessionId, outcome } });

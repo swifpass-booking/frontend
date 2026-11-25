@@ -96,9 +96,11 @@ export interface SearchCriteria {
   city?: string;
   date: string;
   passengers: number;
+  /** Set by the AI planner: show only these offers, in this order. */
+  offerIds?: string[];
 }
 
-export type PaymentMethod = 'esewa' | 'khalti' | 'fonepay' | 'card';
+export type PaymentMethod = 'esewa' | 'khalti' | 'fonepay' | 'stripe' | 'card';
 
 export interface Ticket {
   ticketId: string;

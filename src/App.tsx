@@ -5,6 +5,7 @@ import AuthModal from './components/auth/AuthModal';
 import { VoiceProvider } from './context/VoiceContext';
 import Home from './pages/Home';
 import PaymentReturn from './pages/PaymentReturn';
+import StripeSim from './pages/StripeSim';
 import Results from './pages/Results';
 import Checkout from './pages/Checkout';
 import MyTickets from './pages/MyTickets';
@@ -29,9 +30,9 @@ function TravellerApp({ embedded = false }: { embedded?: boolean }) {
   const [voiceStart, setVoiceStart] = useState(false); // planner opened from a mic button: begin listening
   const { user, token } = useAuth();
   // eSewa / Khalti send the browser back to /payment/<provider>?... — confirm it before anything else.
-  const [returning, setReturning] = useState<'esewa' | 'khalti' | 'fonepay' | null>(() => {
-    const m = window.location.pathname.match(/^\/payment\/(esewa|khalti|fonepay)$/);
-    return m ? (m[1] as 'esewa' | 'khalti' | 'fonepay') : null;
+  const [returning, setReturning] = useState<'esewa' | 'khalti' | 'fonepay' | 'stripe' | null>(() => {
+    const m = window.location.pathname.match(/^\/payment\/(esewa|khalti|fonepay|stripe)$/);
+    return m ? (m[1] as 'esewa' | 'khalti' | 'fonepay' | 'stripe') : null;
   });
 
   // The AI planner is a standalone chat screen (own header, no site nav/footer) except inside the admin panel.
@@ -154,6 +155,7 @@ function RoleRouter() {
   const path = window.location.pathname;
 
   if (!ready) return <div className="min-h-screen bg-slate-50" />;
+  if (path === '/payment/stripe/sim') return <StripeSim />; // dev-only fake Stripe checkout; the backend 404s it outside dev
 
   if (user?.role === 'admin') {
     return (
