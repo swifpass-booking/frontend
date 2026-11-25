@@ -30,4 +30,6 @@ export interface VoiceSearch {
   to: string | null;
   date: string | null;
   passengers: number;
+  /** Offers the agent saw, in the order it saw them; cards show only these. */
+  offerIds?: string[];
 }

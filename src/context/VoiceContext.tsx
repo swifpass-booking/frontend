@@ -46,6 +46,7 @@ function toCriteria(s: VoiceSearch): SearchCriteria {
     city: isVenueMode(mode) ? match(s.to || s.from) : '',
     date: s.date || new Date().toISOString().slice(0, 10),
     passengers: s.passengers || 1,
+    offerIds: s.offerIds,
   };
 }
 
