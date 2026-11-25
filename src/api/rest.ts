@@ -100,6 +100,10 @@ export const adminOccurrences = (token: string | null) =>
 export const adminBookings = (token: string | null) =>
   request<{ bookings: AdminBookingRow[] }>('/admin/bookings', { token });
 
+/** Full Stripe refund: releases the seats and voids the tickets. Resolves with the updated booking. */
+export const adminRefund = (token: string | null, bookingId: string) =>
+  request<AdminBookingRow>(`/admin/bookings/${encodeURIComponent(bookingId)}/refund`, { method: 'POST', token });
+
 /** Events an operator can scan against — open to operator staff as well as admins. */
 export const scanOccurrences = (token: string | null) =>
   request<{ occurrences: AdminOccurrenceRow[] }>('/scan/occurrences', { token });

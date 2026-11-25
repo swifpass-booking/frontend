@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode, type SVGProps } from 'react';
-import { adminBookings, adminOccurrences, adminStats, adminUsers } from '../api/rest';
+import { adminBookings, adminOccurrences, adminRefund, adminStats, adminUsers } from '../api/rest';
 import { formatMoney, formatDate, formatTime } from '../lib/format';
 import { ModeIcon, UsersIcon, TicketIcon, CalendarIcon, ClockIcon, MapPinIcon } from '../components/icons';
 import LiveMap from '../components/map/LiveMap';
@@ -22,7 +22,7 @@ const BOOKING_STATUS_STYLE: Record<string, string> = {
   refunded: 'bg-slate-100 text-slate-600',
 };
 
-const PAYMENT_METHOD_LABEL: Record<string, string> = { esewa: 'eSewa', khalti: 'Khalti', fonepay: 'FonePay', card: 'Card' };
+const PAYMENT_METHOD_LABEL: Record<string, string> = { esewa: 'eSewa', khalti: 'Khalti', fonepay: 'FonePay', stripe: 'Stripe', card: 'Card' };
 
 interface StatTileProps {
   icon: (props: SVGProps<SVGSVGElement>) => JSX.Element;
@@ -95,10 +95,25 @@ function RecentBookings({ rows }: { rows: AdminBookingRow[] }) {
   );
 }
 
-function BookingsTable({ rows }: { rows: AdminBookingRow[] }) {
+function BookingsTable({ rows, onRefund }: { rows: AdminBookingRow[]; onRefund: (id: string) => Promise<void> }) {
+  const [busy, setBusy] = useState('');
+  const [problem, setProblem] = useState('');
+  async function refund(b: AdminBookingRow) {
+    if (!window.confirm(`Refund ${formatMoney(b.total)} for ${b.reference}? Seats are released and tickets voided.`)) return;
+    setBusy(b.bookingId);
+    setProblem('');
+    try {
+      await onRefund(b.bookingId);
+    } catch (e) {
+      setProblem((e as Error).message);
+    } finally {
+      setBusy('');
+    }
+  }
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-card">
       <h2 className="mb-4 text-base font-extrabold text-navy-950">All bookings</h2>
+      {problem && <p className="mb-3 text-sm font-semibold text-red-600">{problem}</p>}
       {rows.length === 0 ? (
         <p className="text-sm text-slate-400">No bookings yet.</p>
       ) : (
@@ -113,7 +128,8 @@ function BookingsTable({ rows }: { rows: AdminBookingRow[] }) {
                 <th className="pb-2 pr-4">Payment</th>
                 <th className="pb-2 pr-4">Total</th>
                 <th className="pb-2 pr-4">Status</th>
-                <th className="pb-2">Booked</th>
+                <th className="pb-2 pr-4">Booked</th>
+                <th className="pb-2"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -145,8 +161,19 @@ function BookingsTable({ rows }: { rows: AdminBookingRow[] }) {
                       <span className="ml-1.5 rounded-full bg-rose-600 px-2 py-0.5 text-xs font-bold text-white">Refund due</span>
                     )}
                   </td>
-                  <td className="py-2.5 text-slate-600">
+                  <td className="py-2.5 pr-4 text-slate-600">
                     {formatDate(b.createdAt)} · {formatTime(b.createdAt)}
+                  </td>
+                  <td className="py-2.5">
+                    {b.payment.method === 'stripe' && (b.status === 'confirmed' || b.refundDue) && (
+                      <button
+                        disabled={busy === b.bookingId}
+                        onClick={() => refund(b)}
+                        className="rounded-lg border border-rose-200 px-2.5 py-1 text-xs font-bold text-rose-700 hover:bg-rose-50 disabled:opacity-50"
+                      >
+                        {busy === b.bookingId ? 'Refunding…' : 'Refund'}
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -324,9 +351,7 @@ export default function AdminApp({ user, token, onSignOut, storefront, scanner }
     <div className="flex min-h-screen bg-slate-50 font-sans text-navy-950">
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col bg-navy-950 p-4 text-white md:flex">
         <div className="mb-8 flex items-center gap-2 px-2 pt-1 text-lg font-extrabold tracking-tight">
-          <span className="grid h-8 w-8 place-items-center rounded-lg bg-brand-blue">
-            <TicketIcon className="h-4 w-4" width={18} height={18} />
-          </span>
+          <img src="/logo.png" alt="" className="h-8 w-8 rounded-lg bg-white object-contain p-0.5" />
           Swiftpass <span className="text-xs font-semibold text-brand-amber">Admin</span>
         </div>
         <nav className="flex flex-1 flex-col gap-1">
@@ -391,7 +416,15 @@ export default function AdminApp({ user, token, onSignOut, storefront, scanner }
               </div>
             </div>
           )}
-          {data && section === 'bookings' && <BookingsTable rows={data.bookings} />}
+          {data && section === 'bookings' && (
+            <BookingsTable
+              rows={data.bookings}
+              onRefund={async (id) => {
+                const updated = await adminRefund(token, id);
+                setData((cur) => cur && { ...cur, bookings: cur.bookings.map((b) => (b.bookingId === id ? { ...b, ...updated } : b)) });
+              }}
+            />
+          )}
           {data && section === 'trips' && <OccurrencesTable rows={data.occurrences} />}
           {data && section === 'fleet' && <FleetView rows={data.occurrences} />}
           {data && section === 'users' && <UsersTable rows={data.users} />}
