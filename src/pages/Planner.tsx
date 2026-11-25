@@ -59,7 +59,7 @@ interface PlannerProps {
 
 /** Full-screen chat with the booking concierge (same one as the voice orb). It only searches and holds seats — checkout stays manual. */
 export default function Planner({ onNavigate, onSignIn, autoStart }: PlannerProps) {
-  const { log, phase, active, cartId, trackId, closeTrack, error, supported, start, stop, send, holdOffer, reviewInCheckout, dismissCart, startOver } = useVoice();
+  const { log, phase, active, cartId, trackId, closeTrack, error, supported, start, stop, send, holdOffer, guestKey, reviewInCheckout, dismissCart, startOver } = useVoice();
   const { user } = useAuth();
   const [draft, setDraft] = useState('');
   const endRef = useRef<HTMLDivElement>(null);
@@ -200,7 +200,7 @@ export default function Planner({ onNavigate, onSignIn, autoStart }: PlannerProp
                       {entry.text}
                     </div>
                   </div>
-                  {i === lastSearch && entry.search && <SearchResults criteria={entry.search} onPick={holdOffer} onSignIn={onSignIn} signedIn={!!user} />}
+                  {i === lastSearch && entry.search && <SearchResults criteria={entry.search} onPick={holdOffer} />}
                 </div>
               ))}
 
@@ -213,7 +213,7 @@ export default function Planner({ onNavigate, onSignIn, autoStart }: PlannerProp
               )}
               {error && <p className="text-sm font-semibold text-red-600">{error}</p>}
 
-              {cartId && <CartCard cartId={cartId} onReview={reviewInCheckout} onDismiss={dismissCart} />}
+              {cartId && <CartCard cartId={cartId} guestKey={guestKey()} onReview={reviewInCheckout} onDismiss={dismissCart} onSignIn={onSignIn} />}
 
               {trackId && (
                 <div className="rounded-2xl border border-slate-200 p-2 text-navy-950">

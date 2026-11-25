@@ -6,12 +6,10 @@ import type { Offer, SearchCriteria, SeatPick } from '../../types/domain';
 interface SearchResultsProps {
   criteria: SearchCriteria;
   onPick: (offer: Offer, qty: number, seats: SeatPick[]) => Promise<void>;
-  onSignIn: () => void;
-  signedIn: boolean;
 }
 
 /** What the agent just searched for, as the same offer cards (with the seat picker) as the results page. */
-export default function SearchResults({ criteria, onPick, onSignIn, signedIn }: SearchResultsProps) {
+export default function SearchResults({ criteria, onPick }: SearchResultsProps) {
   const [offers, setOffers] = useState<Offer[] | null>(null);
   const [problem, setProblem] = useState('');
   const key = JSON.stringify(criteria);
@@ -20,7 +18,12 @@ export default function SearchResults({ criteria, onPick, onSignIn, signedIn }: 
     let cancelled = false;
     setOffers(null);
     searchOffersApi(criteria)
-      .then((o) => !cancelled && setOffers(o.slice(0, 3)))
+      .then((o) => {
+        if (cancelled) return;
+        const ids = criteria.offerIds;
+        const named = ids ? ids.map((id) => o.find((x) => x.offerId === id)).filter((x): x is Offer => !!x) : [];
+        setOffers((named.length ? named : o).slice(0, 3));
+      })
       .catch(() => !cancelled && setOffers([]));
     return () => {
       cancelled = true;
@@ -30,10 +33,6 @@ export default function SearchResults({ criteria, onPick, onSignIn, signedIn }: 
 
   async function pick(offer: Offer, qty?: number, seats: SeatPick[] = []) {
     setProblem('');
-    if (!signedIn) {
-      setProblem('Sign in to hold seats.');
-      return onSignIn();
-    }
     try {
       await onPick(offer, qty ?? criteria.passengers ?? 1, seats);
     } catch (err) {

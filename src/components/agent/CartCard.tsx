@@ -15,13 +15,17 @@ const METHODS: { key: PaymentMethod; label: string }[] = [
 
 interface CartCardProps {
   cartId: string;
+  /** The chat session id that owns an anonymous cart. */
+  guestKey: string;
   /** Open the full checkout page with this cart. */
   onReview: () => void;
   onDismiss: () => void;
+  /** Payment is the only step that needs an account. */
+  onSignIn: () => void;
 }
 
 /** The held trip inside the chat: what is held, the seats, and pay buttons that go straight to the gateway. */
-export default function CartCard({ cartId, onReview, onDismiss }: CartCardProps) {
+export default function CartCard({ cartId, guestKey, onReview, onDismiss, onSignIn }: CartCardProps) {
   const { user, token } = useAuth();
   const [cart, setCart] = useState<RawCart | null>(null);
   const [problem, setProblem] = useState('');
@@ -35,7 +39,7 @@ export default function CartCard({ cartId, onReview, onDismiss }: CartCardProps)
 
   useEffect(() => {
     let cancelled = false;
-    getCart(cartId, token)
+    getCart(cartId, token, guestKey)
       .then((c) => {
         if (cancelled) return;
         setCart(c);
@@ -66,6 +70,10 @@ export default function CartCard({ cartId, onReview, onDismiss }: CartCardProps)
 
   async function pay(method: PaymentMethod) {
     if (!item || !offer || !valid) return;
+    if (!token) {
+      setProblem('Sign in to pay. Your seats stay held.');
+      return onSignIn();
+    }
     setProblem('');
     setPaying(method);
     try {

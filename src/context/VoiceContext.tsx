@@ -65,7 +65,9 @@ interface VoiceValue {
   stop: () => void;
   close: () => void;
   send: (text: string) => void;
-  /** Hold the picked seats from a result card and show the cart in the chat. Throws if not signed in. */
+  /** Anonymous owner of this chat's holds and carts (its session id). No account needed until payment. */
+  guestKey: () => string;
+  /** Hold the picked seats from a result card and show the cart in the chat. */
   holdOffer: (offer: Offer, qty: number, seats: SeatPick[]) => Promise<void>;
   reviewInCheckout: () => void;
   dismissCart: () => void;
@@ -294,12 +296,18 @@ export function VoiceProvider({ token, onReviewOffer, children }: ProviderProps)
     sayLocally(reply);
   }
 
+  function guestKey(): string {
+    const id = sessionRef.current ?? crypto.randomUUID().replace(/-/g, ''); // the agent reuses this id as its session
+    sessionRef.current = id;
+    return id;
+  }
+
   async function reviewInCheckout() {
     const id = cartRef.current;
     if (!id) return;
     halt();
     try {
-      const cart = await getCart(id, tokenRef.current);
+      const cart = await getCart(id, tokenRef.current, sessionRef.current);
       const first = cart.items[0];
       if (!first) {
         setError("That trip isn't held anymore — ask me to search again.");
@@ -342,9 +350,9 @@ export function VoiceProvider({ token, onReviewOffer, children }: ProviderProps)
         stopSpeaking();
         void sendTyped(text);
       },
+      guestKey,
       holdOffer: async (offer, qty, seats) => {
-        if (!tokenRef.current) throw new Error('Sign in to hold seats.');
-        setCartId(await holdInCart(offer, qty, seats, tokenRef.current));
+        setCartId(await holdInCart(offer, qty, seats, tokenRef.current, guestKey()));
       },
       reviewInCheckout: () => void reviewInCheckout(),
       dismissCart: () => setCartId(null),

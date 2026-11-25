@@ -9,13 +9,16 @@ interface RequestOptions {
   method?: string;
   body?: unknown;
   token?: string | null;
+  /** Anonymous owner of holds and carts: the chat session id. */
+  guestKey?: string | null;
   headers?: Record<string, string>;
 }
 
-export async function request<T>(path: string, { method = 'GET', body, token, headers: extra }: RequestOptions = {}): Promise<T> {
+export async function request<T>(path: string, { method = 'GET', body, token, guestKey, headers: extra }: RequestOptions = {}): Promise<T> {
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   if (token) headers['Authorization'] = `Bearer ${token}`;
+  if (guestKey) headers['X-Guest-Key'] = guestKey;
   Object.assign(headers, extra);
 
   const res = await fetch(`/v1${path}`, {
@@ -196,7 +199,7 @@ export interface RawCart {
   expiresAt: string;
 }
 
-export const getCart = (cartId: string, token: string | null) => request<RawCart>(`/carts/${cartId}`, { token });
+export const getCart = (cartId: string, token: string | null, guestKey?: string | null) => request<RawCart>(`/carts/${cartId}`, { token, guestKey });
 
 export const getSeatMap = (occurrenceId: string) =>
   request<SeatMap>(`/occurrences/${encodeURIComponent(occurrenceId)}/seatmap`);
@@ -226,7 +229,7 @@ export async function searchOffersApi(c: SearchCriteria): Promise<Offer[]> {
 }
 
 /** Hold seats (or a headcount) on an offer and put them in a fresh cart. Needs a signed-in traveller. */
-export async function holdInCart(offer: Offer, qty: number, seats: SeatPick[], token: string | null): Promise<string> {
+export async function holdInCart(offer: Offer, qty: number, seats: SeatPick[], token: string | null, guestKey: string | null): Promise<string> {
   const zone = seats.length
     ? offer.zones.find((z) => z.code === seats[0].zoneCode)
     : offer.zones.find((z) => z.price.amount === offer.price.amount) ?? offer.zones[0];
@@ -235,11 +238,12 @@ export async function holdInCart(offer: Offer, qty: number, seats: SeatPick[], t
     request<{ holdId: string }>('/holds', {
       method: 'POST',
       token,
+      guestKey,
       body: { occurrenceId: offer.occurrenceId, zoneId: zone.id, seatLabels: seats.map((s) => s.label), qty },
     }),
-    request<{ cartId: string }>('/carts', { method: 'POST', token, body: {} }),
+    request<{ cartId: string }>('/carts', { method: 'POST', token, guestKey, body: {} }),
   ]);
-  await request(`/carts/${cart.cartId}/items`, { method: 'POST', token, body: { holdId: hold.holdId } });
+  await request(`/carts/${cart.cartId}/items`, { method: 'POST', token, guestKey, body: { holdId: hold.holdId } });
   return cart.cartId;
 }
 
