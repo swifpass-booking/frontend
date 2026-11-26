@@ -5,7 +5,7 @@
  * The mic button lives in the search card; VoiceMode.tsx renders this state.
  */
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type MutableRefObject, type ReactNode } from 'react';
-import { getCart, heldSeats, holdInCart, toOffer } from '../api/rest';
+import { getCart, heldSeats, holdInCart, request, toOffer } from '../api/rest';
 import { postVoiceTurn } from '../api/voiceAgent';
 import { openVoiceStream, type VoiceStream } from '../lib/voiceStream';
 import { isVenueMode } from '../lib/offers';
@@ -27,7 +27,7 @@ const STORE_KEY = 'swiftpass-voice-chat-v1';
 
 function loadChat(): { log: LogEntry[]; sessionId: string | null } {
   try {
-    const raw = JSON.parse(localStorage.getItem(STORE_KEY) || 'null');
+    const raw = JSON.parse(sessionStorage.getItem(STORE_KEY) || 'null');
     if (raw && Array.isArray(raw.log)) return { log: raw.log.map((e: LogEntry) => ({ ...e, live: false })), sessionId: raw.sessionId ?? null };
   } catch {
     /* storage unavailable or corrupt — start fresh */
@@ -148,11 +148,32 @@ export function VoiceProvider({ token, onReviewOffer, children }: ProviderProps)
   reviewRef.current = onReviewOffer;
   const tokenRef = useRef(token);
   tokenRef.current = token;
+  // The agent service calls the API for the traveller, so it gets a 10-minute bearer token. The long-lived
+  // session is an httpOnly cookie that scripts (and so an XSS) cannot read.
+  const agentTokenRef = useRef<string | null>(null);
+  const refreshAgentToken = useCallback(async () => {
+    if (!tokenRef.current) return (agentTokenRef.current = null);
+    try {
+      agentTokenRef.current = (await request<{ token: string }>('/auth/agent-token', { method: 'POST' })).token;
+    } catch {
+      agentTokenRef.current = null;
+    }
+    return agentTokenRef.current;
+  }, []);
+  useEffect(() => {
+    if (!token) {
+      agentTokenRef.current = null;
+      return;
+    }
+    void refreshAgentToken();
+    const id = setInterval(() => void refreshAgentToken(), 8 * 60 * 1000);
+    return () => clearInterval(id);
+  }, [token, refreshAgentToken]);
   cartRef.current = cartId;
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORE_KEY, JSON.stringify({ log: log.slice(-60), sessionId: sessionRef.current }));
+      sessionStorage.setItem(STORE_KEY, JSON.stringify({ log: log.slice(-60), sessionId: sessionRef.current }));
     } catch {
       /* ignore */
     }
@@ -185,7 +206,7 @@ export function VoiceProvider({ token, onReviewOffer, children }: ProviderProps)
     setTrackId(null);
     setLog([]);
     try {
-      localStorage.removeItem(STORE_KEY);
+      sessionStorage.removeItem(STORE_KEY);
     } catch {
       /* ignore */
     }
@@ -222,8 +243,9 @@ export function VoiceProvider({ token, onReviewOffer, children }: ProviderProps)
   const connect = useCallback(async () => {
     setError(null);
     try {
+      if (!agentTokenRef.current) await refreshAgentToken();
       const stream = await openVoiceStream(
-        { sessionId: sessionRef.current, getToken: () => tokenRef.current },
+        { sessionId: sessionRef.current, getToken: () => agentTokenRef.current },
         {
           onLevel: (l) => (levelRef.current = l),
           onSpeechStart: () => {
@@ -283,7 +305,7 @@ export function VoiceProvider({ token, onReviewOffer, children }: ProviderProps)
     let reply: string;
     let search: SearchCriteria | undefined;
     try {
-      const r = await postVoiceTurn({ sessionId: sessionRef.current, message: text, token: tokenRef.current });
+      const r = await postVoiceTurn({ sessionId: sessionRef.current, message: text, token: agentTokenRef.current ?? (await refreshAgentToken()) });
       sessionRef.current = r.sessionId;
       reply = r.reply;
       if (r.cartId) setCartId(r.cartId);
@@ -362,7 +384,7 @@ export function VoiceProvider({ token, onReviewOffer, children }: ProviderProps)
         sessionRef.current = null;
         setLog([]);
         try {
-          localStorage.removeItem(STORE_KEY);
+          sessionStorage.removeItem(STORE_KEY);
         } catch {
           /* ignore */
         }
