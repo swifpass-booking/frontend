@@ -155,7 +155,7 @@ function RoleRouter() {
   const path = window.location.pathname;
 
   if (!ready) return <div className="min-h-screen bg-slate-50" />;
-  if (path === '/payment/stripe/sim') return <StripeSim />; // dev-only fake Stripe checkout; the backend 404s it outside dev
+  if (import.meta.env.DEV && path === '/payment/stripe/sim') return <StripeSim />; // dev-only fake Stripe checkout; the backend 404s it outside dev
 
   if (user?.role === 'admin') {
     return (
