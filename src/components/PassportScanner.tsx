@@ -73,7 +73,9 @@ export default function PassportScanner({ onResult, onClose }: PassportScannerPr
     setMessage('Reading passport… (first scan downloads the OCR model)');
     try {
       if (!workerRef.current) {
-        const worker = await createWorker('eng');
+        // Self-hosted worker, wasm core and language data (public/ocr): no third-party CDN sees or serves the OCR.
+        const base = `${window.location.origin}/ocr`;
+        const worker = await createWorker('eng', undefined, { workerPath: `${base}/worker.min.js`, corePath: `${base}/core`, langPath: `${base}/lang` });
         await worker.setParameters({ tessedit_char_whitelist: MRZ_CHARS, tessedit_pageseg_mode: PSM.SINGLE_BLOCK });
         workerRef.current = worker;
       }

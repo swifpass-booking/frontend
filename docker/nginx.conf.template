@@ -9,9 +9,7 @@ server {
     root /usr/share/nginx/html;
     client_max_body_size 4m;  # voice clips go to /agent/stt
 
-    add_header X-Content-Type-Options nosniff always;
-    add_header Referrer-Policy strict-origin-when-cross-origin always;
-    add_header X-Frame-Options DENY always;
+    include /etc/nginx/snippets/security-headers.conf;
 
     location /v1/ {
         proxy_pass ${API_UPSTREAM};
@@ -53,7 +51,7 @@ server {
     location /assets/ {
         expires 1y;
         add_header Cache-Control "public, immutable";
-        add_header X-Content-Type-Options nosniff always;  # add_header in a location drops the server-level ones
+        include /etc/nginx/snippets/security-headers.conf;  # add_header in a location drops the server-level ones
     }
 
     # Client-side routes (/ops, /admin, /payment/return, ...) all load the SPA.

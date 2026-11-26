@@ -14,5 +14,6 @@ RUN npm run build
 FROM nginx:1.27-alpine
 ENV API_UPSTREAM=http://backend:8000 AGENT_UPSTREAM=http://agent:8100 PORT=80
 COPY docker/nginx.conf.template /etc/nginx/templates/default.conf.template
+COPY docker/security-headers.conf /etc/nginx/snippets/security-headers.conf
 COPY --from=build /app/dist /usr/share/nginx/html
 EXPOSE 80
