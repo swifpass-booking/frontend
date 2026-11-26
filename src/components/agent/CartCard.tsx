@@ -34,6 +34,7 @@ export default function CartCard({ cartId, guestKey, onReview, onDismiss, onSign
   const [email, setEmail] = useState(user?.email || '');
   const [agreed, setAgreed] = useState(false);
   const [paying, setPaying] = useState<PaymentMethod | null>(null);
+  const [formOpen, setFormOpen] = useState(false); // the pay-here form stays folded away until asked for
   const [now, setNow] = useState(Date.now());
   const idempotencyKey = useRef(crypto.randomUUID());
 
@@ -142,6 +143,17 @@ export default function CartCard({ cartId, guestKey, onReview, onDismiss, onSign
       </div>
 
       {left > 0 && (
+        <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 p-4">
+          <button onClick={onReview} className="rounded-full bg-navy-950 px-5 py-2 text-sm font-bold text-white transition hover:bg-navy-800 active:scale-95">
+            Review &amp; pay
+          </button>
+          <button onClick={() => setFormOpen((v) => !v)} aria-expanded={formOpen} className="text-sm font-semibold text-brand-blue hover:underline">
+            {formOpen ? 'Hide details form' : 'Fill in details here'}
+          </button>
+        </div>
+      )}
+
+      {left > 0 && formOpen && (
         <div className="space-y-3 border-t border-slate-100 p-4">
           {international ? (
             <p className="text-sm text-slate-600">International flights need passport details, so finish this one in the full checkout.</p>
@@ -180,9 +192,6 @@ export default function CartCard({ cartId, guestKey, onReview, onDismiss, onSign
             </>
           )}
           {problem && <p className="text-sm font-semibold text-red-600">{problem}</p>}
-          <button onClick={onReview} className="text-xs font-semibold text-brand-blue hover:underline">
-            Open full checkout
-          </button>
         </div>
       )}
     </div>

@@ -10,10 +10,12 @@
     "typecheck": "tsc"
   },
   "dependencies": {
+    "@ricky0123/vad-web": "^0.0.31",
     "@types/leaflet": "^1.9.22",
     "jsqr": "^1.4.0",
     "leaflet": "^1.9.4",
     "mrz": "^5.0.2",
+    "onnxruntime-web": "^1.22.0",
     "qrcode": "^1.5.4",
     "react": "18.3.1",
     "react-dom": "18.3.1",

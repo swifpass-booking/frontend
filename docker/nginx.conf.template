@@ -54,6 +54,17 @@ server {
         include /etc/nginx/snippets/security-headers.conf;  # add_header in a location drops the server-level ones
     }
 
+    # Voice-activity model and its wasm runtime. The runtime's .mjs must be served as JavaScript or browsers refuse to import it.
+    location /vad/ {
+        types {
+            application/javascript js mjs;
+            application/wasm wasm;
+            application/octet-stream onnx;
+        }
+        expires 7d;
+        include /etc/nginx/snippets/security-headers.conf;
+    }
+
     # Client-side routes (/ops, /admin, /payment/return, ...) all load the SPA.
     location / {
         try_files $uri /index.html;

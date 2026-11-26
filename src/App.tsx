@@ -15,6 +15,7 @@ import GateBoard from './pages/GateBoard';
 import Planner from './pages/Planner';
 import StaffLogin from './pages/StaffLogin';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ToastProvider } from './components/ui/Toast';
 import type { BookingDraft, Offer, Page, SearchCriteria, SeatPick } from './types/domain';
 
 /** `embedded`: shown inside the admin panel, so the admin sees exactly what travellers book from. */
@@ -83,8 +84,9 @@ function TravellerApp({ embedded = false }: { embedded?: boolean }) {
 
   return (
     <VoiceProvider token={token} onReviewOffer={handleSelect}>
-    <div className={`${embedded ? '' : 'min-h-screen '}bg-slate-50 font-sans text-navy-950`}>
-      {!fullBleed && <Nav
+    {/* Grid: nav, the page (takes all spare height), footer. A short page leaves the footer at the bottom of the window. */}
+    <div className={`${embedded ? '' : 'grid min-h-screen grid-rows-[auto_1fr_auto] '}bg-slate-50 font-sans text-navy-950`}>
+      <Nav
         page={page}
         cartCount={selectedOffer && page !== 'confirmation' ? 1 : 0}
         onNavigate={(p) => {
@@ -94,8 +96,9 @@ function TravellerApp({ embedded = false }: { embedded?: boolean }) {
           else setPage(p);
         }}
         onSignIn={() => setAuthOpen(true)}
-      />}
+      />
 
+      <main className="min-w-0">
       {returning && <PaymentReturn
           provider={returning}
           onConfirmed={handlePaid}
@@ -106,15 +109,10 @@ function TravellerApp({ embedded = false }: { embedded?: boolean }) {
           }}
         />}
 
-      {!returning && page === 'home' && <Home onSearch={handleSearch} onPlan={() => openPlanner(false)} onVoice={() => openPlanner(true)} />}
+      {!returning && page === 'home' && <Home onSearch={handleSearch} onPlan={() => openPlanner(false)} />}
 
       {page === 'planner' && (
         <Planner
-          onNavigate={(p) => {
-            setVoiceStart(false);
-            if (p === 'home') goHome();
-            else setPage(p);
-          }}
           onSignIn={() => setAuthOpen(true)}
           autoStart={voiceStart}
         />
@@ -140,6 +138,7 @@ function TravellerApp({ embedded = false }: { embedded?: boolean }) {
       )}
 
       {page === 'confirmation' && <Confirmation booking={booking} onDone={goHome} />}
+      </main>
 
       {!embedded && !fullBleed && <Footer />}
 
@@ -155,7 +154,7 @@ function RoleRouter() {
   const path = window.location.pathname;
 
   if (!ready) return <div className="min-h-screen bg-slate-50" />;
-  if (import.meta.env.DEV && path === '/payment/stripe/sim') return <StripeSim />; // dev-only fake Stripe checkout; the backend 404s it outside dev
+  if (path === '/payment/stripe/sim') return <StripeSim />; // fake Stripe checkout; the backend only hands out its URL (and the simulate call) outside production
 
   if (user?.role === 'admin') {
     return (
@@ -187,7 +186,9 @@ function RoleRouter() {
 export default function App() {
   return (
     <AuthProvider>
-      <RoleRouter />
+      <ToastProvider>
+        <RoleRouter />
+      </ToastProvider>
     </AuthProvider>
   );
 }

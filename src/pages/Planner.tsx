@@ -1,47 +1,13 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useVoice } from '../context/VoiceContext';
-import { useAuth } from '../context/AuthContext';
 import { CloseIcon, MicIcon, SendIcon } from '../components/icons';
 import { Orb } from '../components/agent/VoiceMode';
+import Wave from '../components/agent/Wave';
 import SearchResults from '../components/agent/SearchResults';
 import CartCard from '../components/agent/CartCard';
+import ChatSidebar from '../components/agent/ChatSidebar';
 import LiveMap from '../components/map/LiveMap';
-import type { Page } from '../types/domain';
-
-const BARS = 64;
-
-/** Dotted level meter (ChatGPT-style): dots swell into bars as the mic level scrolls past. */
-function Wave() {
-  const { levelRef } = useVoice();
-  const box = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const hist = new Array<number>(BARS).fill(0);
-    let raf = 0;
-    let last = 0;
-    const loop = (t: number) => {
-      if (t - last > 45) {
-        last = t;
-        hist.shift();
-        hist.push(Math.min(1, levelRef.current * 1.6));
-        box.current?.childNodes.forEach((n, i) => {
-          const el = n as HTMLElement;
-          el.style.height = `${4 + hist[i] * 26}px`;
-          el.style.opacity = String(0.35 + hist[i] * 0.65);
-        });
-      }
-      raf = requestAnimationFrame(loop);
-    };
-    raf = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(raf);
-  }, [levelRef]);
-  return (
-    <div ref={box} className="flex h-8 min-w-0 flex-1 items-center justify-between gap-[3px] overflow-hidden px-2">
-      {Array.from({ length: BARS }, (_, i) => (
-        <span key={i} className="w-[3px] shrink-0 rounded-full bg-slate-500 transition-[height] duration-100" style={{ height: 4, opacity: 0.35 }} />
-      ))}
-    </div>
-  );
-}
+import MyLocation from '../components/map/MyLocation';
 
 const SUGGESTIONS = [
   'Plan a 3-day trip from Kathmandu to Pokhara under NPR 40,000',
@@ -51,20 +17,20 @@ const SUGGESTIONS = [
 ];
 
 interface PlannerProps {
-  onNavigate: (page: Page) => void;
   onSignIn: () => void;
   /** Arrived via a mic button: start listening right away. */
   autoStart?: boolean;
 }
 
 /** Full-screen chat with the booking concierge (same one as the voice orb). It only searches and holds seats — checkout stays manual. */
-export default function Planner({ onNavigate, onSignIn, autoStart }: PlannerProps) {
-  const { log, phase, active, cartId, trackId, closeTrack, error, supported, start, stop, send, holdOffer, guestKey, reviewInCheckout, dismissCart, startOver } = useVoice();
-  const { user } = useAuth();
+export default function Planner({ onSignIn, autoStart }: PlannerProps) {
+  const { log, phase, active, cartId, trackId, closeTrack, showMe, closeMe, error, supported, start, stop, send, holdOffer, guestKey, reviewInCheckout, dismissCart } = useVoice();
   const [draft, setDraft] = useState('');
+  const [sidebarOpen, setSidebarOpen] = useState(() => typeof window !== 'undefined' && window.innerWidth >= 1024);
   const endRef = useRef<HTMLDivElement>(null);
   const busy = phase === 'thinking' || phase === 'transcribing';
   const empty = log.length === 0;
+  const cartEntry = log.reduce((n, e, i) => (e.cartId && e.cartId === cartId ? i : n), -1); // the message the live cart belongs to
   const lastSearch = log.reduce((n, e, i) => (e.search ? i : n), -1); // only the newest search shows cards
 
   useEffect(() => {
@@ -142,35 +108,26 @@ export default function Planner({ onNavigate, onSignIn, autoStart }: PlannerProp
   );
 
   return (
-    <div className="flex h-screen flex-col bg-white text-navy-950">
-      <header className="flex items-center justify-between px-4 py-3 sm:px-6">
-        <button onClick={() => onNavigate('home')} className="flex items-center gap-2 text-lg font-extrabold tracking-tight text-navy-950">
-          <img src="/logo.png" alt="" className="h-8 w-8 object-contain" />
-          Swiftpass
-        </button>
-        <nav className="flex items-center gap-1 rounded-full bg-slate-100 p-1 text-sm font-medium">
-          <span className="rounded-full bg-white px-4 py-1.5 text-navy-950 shadow-sm">AI planner</span>
-          <button onClick={() => onNavigate('home')} className="rounded-full px-4 py-1.5 text-slate-500 hover:text-navy-950">
-            Book a trip
-          </button>
-          <button onClick={() => onNavigate('tickets')} className="rounded-full px-4 py-1.5 text-slate-500 hover:text-navy-950">
-            My tickets
-          </button>
-        </nav>
-        <div className="flex items-center gap-2 text-sm">
-          {!empty && (
-            <button onClick={startOver} className="rounded-full px-3 py-1.5 font-semibold text-slate-600 hover:bg-slate-100">
-              New chat
-            </button>
-          )}
-          {!user && (
-            <button onClick={onSignIn} className="rounded-full bg-navy-950 px-4 py-1.5 font-semibold text-white">
-              Sign in
-            </button>
-          )}
-        </div>
-      </header>
+    <div className="relative flex h-[calc(100dvh-57px)] bg-white text-navy-950">
+      {sidebarOpen && (
+        <>
+          {/* Phones: the sidebar slides over the chat, tapping outside closes it. */}
+          <div className="fixed inset-0 z-30 bg-navy-950/30 lg:hidden" onClick={() => setSidebarOpen(false)} />
+          <div className="fixed inset-y-0 left-0 z-40 pt-[57px] lg:static lg:z-auto lg:pt-0">
+            <ChatSidebar onClose={() => setSidebarOpen(false)} onSignIn={onSignIn} />
+          </div>
+        </>
+      )}
 
+      <div className="relative flex min-w-0 flex-1 flex-col">
+        {!sidebarOpen && (
+          <button onClick={() => setSidebarOpen(true)} aria-label="Show chats" title="Show chats" className="absolute left-3 top-3 z-10 grid h-9 w-9 place-items-center rounded-lg text-slate-500 hover:bg-slate-100">
+            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <rect x="3" y="4" width="18" height="16" rx="3" />
+              <path d="M9 4v16" />
+            </svg>
+          </button>
+        )}
       {empty ? (
         <main className="flex flex-1 flex-col items-center justify-center px-4 pb-24">
           <Orb phase={phase} size={72} />
@@ -201,6 +158,7 @@ export default function Planner({ onNavigate, onSignIn, autoStart }: PlannerProp
                     </div>
                   </div>
                   {i === lastSearch && entry.search && <SearchResults criteria={entry.search} onPick={holdOffer} />}
+                  {i === cartEntry && cartId && <CartCard cartId={cartId} guestKey={guestKey()} onReview={reviewInCheckout} onDismiss={dismissCart} onSignIn={onSignIn} />}
                 </div>
               ))}
 
@@ -213,7 +171,9 @@ export default function Planner({ onNavigate, onSignIn, autoStart }: PlannerProp
               )}
               {error && <p className="text-sm font-semibold text-red-600">{error}</p>}
 
-              {cartId && <CartCard cartId={cartId} guestKey={guestKey()} onReview={reviewInCheckout} onDismiss={dismissCart} onSignIn={onSignIn} />}
+              {cartId && cartEntry < 0 && <CartCard cartId={cartId} guestKey={guestKey()} onReview={reviewInCheckout} onDismiss={dismissCart} onSignIn={onSignIn} />}
+
+              {showMe && <MyLocation onClose={closeMe} />}
 
               {trackId && (
                 <div className="rounded-2xl border border-slate-200 p-2 text-navy-950">
@@ -226,6 +186,7 @@ export default function Planner({ onNavigate, onSignIn, autoStart }: PlannerProp
           <div className="mx-auto w-full max-w-3xl px-4 pb-5">{dock || composer}</div>
         </>
       )}
+      </div>
     </div>
   );
 }

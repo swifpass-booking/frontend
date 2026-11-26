@@ -7,20 +7,27 @@
  * WebAudio timeline. If the user starts talking while a reply is playing (or still being
  * produced) playback is cut immediately and "start" tells the server to abandon that turn.
  */
+import { MicVAD } from '@ricky0123/vad-web';
 import type { VoiceTurnResponse } from '../types/agent';
 
 const RATE = 16_000;
 const CHUNK = 2048; // worklet block, ~43 ms at 48 kHz
-const END_SILENCE_MS = 700;
-const ONSET_MS = 90; // sustained loudness before we call it speech
+const END_SILENCE_MS = 1000; // a thinking pause mid-sentence must not end the turn
+const ONSET_MS = 100; // sustained loudness before we call it speech (a door slam or keyboard click is shorter)
 const ONSET_WHILE_PLAYING_MS = 240; // longer + louder while we are talking, to ignore echo
-const PREROLL_MS = 400;
+const MIN_VOICED_MS = 160; // less voiced audio than this is a click or cough, dropped ("Book it" is about 300 ms)
+const MIN_THRESHOLD = 0.035; // absolute floor: quiet rooms must not trigger on faint sounds
+const FLOOR_MULT = 4; // speech must be this many times louder than the room's background
+const PREROLL_MS = 1200; // audio kept from before speech was detected, so the first words are not lost
 const MAX_UTTERANCE_MS = 28_000;
+const VOICE_PROB = 0.6; // Silero speech probability needed for a frame to count as a human voice
+const VOICE_PROB_WHILE_PLAYING = 0.8;
+const VOICE_PROB_CONTINUE = 0.3; // once you are talking, soft words and trailing syllables only need a weak voice score (hysteresis)
 
 export interface StreamHandlers {
   onLevel: (level: number) => void;
   onSpeechStart: () => void;
-  onSpeechEnd: () => void;
+  onSpeechEnd: (dropped?: boolean) => void; // dropped: too short to be speech, nothing was sent
   onTranscript: (text: string) => void;
   onEmpty: () => void;
   onReply: (reply: VoiceTurnResponse) => void;
@@ -92,6 +99,7 @@ export async function openVoiceStream(opts: StreamOptions, h: StreamHandlers): P
     closed = true;
     stopPlayback();
     media.getTracks().forEach((t) => t.stop());
+    void vad?.destroy();
     void ctx.close().catch(() => undefined);
     h.onLevel(0);
     if (ws.readyState <= WebSocket.OPEN) ws.close();
@@ -236,6 +244,29 @@ export async function openVoiceStream(opts: StreamOptions, h: StreamHandlers): P
   ctx.createMediaStreamSource(media).connect(node);
   node.connect(mute).connect(ctx.destination);
 
+  // Silero VAD tells a human voice from a fan, keyboard or traffic, which loudness alone cannot. If it fails to load, loudness still works.
+  let voiceProb = 0;
+  let vadReady = false;
+  let vad: MicVAD | null = null;
+  MicVAD.new({
+    model: 'v5',
+    baseAssetPath: '/vad/',
+    onnxWASMBasePath: '/vad/',
+    getStream: async () => media.clone(),
+    onFrameProcessed: (p) => {
+      voiceProb = p.isSpeech;
+    },
+    onSpeechStart: () => undefined,
+    onSpeechEnd: () => undefined,
+  })
+    .then((v) => {
+      if (closed) return void v.destroy();
+      vad = v;
+      vadReady = true;
+      return v.start();
+    })
+    .catch(() => undefined);
+
   const preroll: Int16Array[] = [];
   let prerollMs = 0;
   let floor = 0;
@@ -243,6 +274,7 @@ export async function openVoiceStream(opts: StreamOptions, h: StreamHandlers): P
   let loudMs = 0;
   let lastVoice = 0;
   let speechStart = 0;
+  let voicedMs = 0;
 
   const send = (pcm: Int16Array) => ws.readyState === WebSocket.OPEN && ws.send(pcm.buffer.slice(pcm.byteOffset, pcm.byteOffset + pcm.byteLength));
 
@@ -257,24 +289,33 @@ export async function openVoiceStream(opts: StreamOptions, h: StreamHandlers): P
 
     const pcm = resampler.process(block);
     const now = performance.now();
-    const busy = playing || pendingDecodes > 0;
+    // Only real playback risks echo. While the reply is merely being prepared nothing is audible, so a quick "book it" over the dots must not face the stricter gate.
+    const busy = playing;
 
     if (!speaking && floorMs < 500) {
       floor = (floor * floorMs + rms * ms) / (floorMs + ms);
       floorMs += ms;
+    } else if (!speaking && !busy && loudMs === 0) {
+      floor += (rms - floor) * Math.min(1, ms / 4000); // follow slow changes in the room (fan, traffic) so they stop counting as speech
     }
-    const threshold = Math.max(0.02, floor * 3) * (busy ? 2.5 : 1);
+    const threshold = Math.max(MIN_THRESHOLD, floor * FLOOR_MULT) * (busy ? 2.5 : 1);
+    const loud = vadReady
+      ? speaking
+        ? voiceProb > VOICE_PROB_CONTINUE && rms > MIN_THRESHOLD * 0.25
+        : voiceProb > (busy ? VOICE_PROB_WHILE_PLAYING : VOICE_PROB) && rms > MIN_THRESHOLD * 0.5
+      : rms > threshold;
 
     if (!speaking) {
       preroll.push(pcm);
       prerollMs += ms;
       while (prerollMs > PREROLL_MS && preroll.length > 1) prerollMs -= (preroll.shift()!.length / RATE) * 1000;
-      loudMs = rms > threshold ? loudMs + ms : 0;
+      loudMs = loud ? loudMs + ms : Math.max(0, loudMs - ms * 0.5); // a dip between syllables slows the count instead of restarting it
       if (loudMs >= (busy ? ONSET_WHILE_PLAYING_MS : ONSET_MS)) {
         // Barge-in: cut our own voice first, then tell the server to drop the abandoned turn.
         stopPlayback();
         speaking = true;
         speechStart = lastVoice = now;
+        voicedMs = loudMs;
         sendJson({ type: 'start' });
         h.onSpeechStart();
         preroll.splice(0).forEach(send);
@@ -284,12 +325,16 @@ export async function openVoiceStream(opts: StreamOptions, h: StreamHandlers): P
     }
 
     send(pcm);
-    if (rms > threshold) lastVoice = now;
+    if (loud) {
+      lastVoice = now;
+      voicedMs += ms;
+    }
     if (now - lastVoice > END_SILENCE_MS || now - speechStart > MAX_UTTERANCE_MS) {
       speaking = false;
       loudMs = 0;
-      sendJson({ type: 'end', token: opts.getToken() });
-      h.onSpeechEnd();
+      const dropped = voicedMs < MIN_VOICED_MS; // a click or cough, not a sentence
+      sendJson(dropped ? { type: 'cancel' } : { type: 'end', token: opts.getToken() });
+      h.onSpeechEnd(dropped);
     }
   };
 

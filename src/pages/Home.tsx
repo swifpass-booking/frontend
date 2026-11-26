@@ -1,9 +1,10 @@
 import SearchWidget from '../components/search/SearchWidget';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { fetchFeatured } from '../api/rest';
 import { formatMoney } from '../lib/format';
-import { ModeIcon, ShieldIcon, ClockIcon, CheckIcon, MicIcon, SendIcon } from '../components/icons';
+import { ModeIcon, ShieldIcon, ClockIcon, CheckIcon, MicIcon, SendIcon, CloseIcon } from '../components/icons';
 import { Orb } from '../components/agent/VoiceMode';
+import Wave from '../components/agent/Wave';
 import { useVoice } from '../context/VoiceContext';
 import type { Offer, SearchCriteria } from '../types/domain';
 
@@ -19,13 +20,16 @@ const HIGHLIGHTS = [
   { icon: CheckIcon, title: 'One checkout, every leg', body: 'Flights, buses, hotels, resorts, event halls and tickets — one booking, one QR per guest.' },
 ];
 
-export default function Home({ onSearch, onPlan, onVoice }: { onSearch: (criteria: SearchCriteria) => void; onPlan?: () => void; onVoice?: () => void }) {
+export default function Home({ onSearch, onPlan }: { onSearch: (criteria: SearchCriteria) => void; onPlan?: () => void }) {
   const [featured, setFeatured] = useState<Offer[]>([]);
   const [draft, setDraft] = useState('');
-  const { send } = useVoice();
+  const [homeVoice, setHomeVoice] = useState(false); // the mic was tapped here, so the first sentence is taken on this screen
+  const { send, start, stop, startOver, supported, phase, log } = useVoice();
+  const spoke = homeVoice && log.some((e) => e.role === 'user');
 
-  // The planner page is where the conversation lives: hand the question over and go there.
+  // The planner page is where the conversation lives: begin a fresh chat there with what was asked here.
   function plan(text: string) {
+    startOver();
     send(text);
     onPlan?.();
   }
@@ -33,6 +37,30 @@ export default function Home({ onSearch, onPlan, onVoice }: { onSearch: (criteri
     e.preventDefault();
     if (draft.trim()) plan(draft.trim());
   }
+  function toggleMic() {
+    if (homeVoice) {
+      stop();
+      setHomeVoice(false);
+      return;
+    }
+    startOver();
+    setHomeVoice(true);
+    start();
+  }
+  // The sentence was heard: carry the live conversation over to the planner, mic still open.
+  useEffect(() => {
+    if (spoke) onPlan?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [spoke]);
+  // Leaving before anything was said must not leave the mic open.
+  const stillListening = useRef(false);
+  stillListening.current = homeVoice && !spoke;
+  useEffect(() => () => {
+    if (stillListening.current) stop();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const hearing = homeVoice && (phase === 'listening' || phase === 'idle');
+  const understanding = homeVoice && (phase === 'transcribing' || phase === 'thinking');
   useEffect(() => {
     let cancelled = false;
     fetchFeatured()
@@ -46,35 +74,70 @@ export default function Home({ onSearch, onPlan, onVoice }: { onSearch: (criteri
   return (
     <div>
       <section className="bg-white">
-        <div className="mx-auto flex max-w-3xl flex-col items-center px-4 pb-10 pt-14 sm:px-6 sm:pt-20">
-          <Orb phase="idle" size={64} />
-          <h1 className="mb-8 mt-7 text-center text-3xl font-medium text-navy-950 sm:text-4xl">Where to next?</h1>
+        <div className="mx-auto flex max-w-4xl flex-col items-center px-4 pb-14 pt-12 sm:px-6 sm:pt-16">
+          <Orb phase={homeVoice ? phase : 'idle'} size={64} />
+          <h1 className="mb-7 mt-6 text-center text-3xl font-medium text-navy-950 sm:text-4xl">Where to next?</h1>
 
-          <form onSubmit={ask} className="flex w-full items-center gap-2 rounded-full bg-slate-100 py-2 pl-5 pr-2 ring-1 ring-slate-200">
-            <input
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              placeholder="Ask the AI planner — flights, buses, hotels, events…"
-              className="min-w-0 flex-1 bg-transparent text-[15px] text-navy-950 placeholder:text-slate-400 focus:outline-none"
-            />
-            <button type="button" onClick={onVoice} title="Talk to the booking assistant" aria-label="Open the AI planner" className="grid h-10 w-10 place-items-center rounded-full text-slate-500 hover:text-navy-950">
-              <MicIcon width={20} height={20} />
-            </button>
-            <button disabled={!draft.trim()} aria-label="Send" className="grid h-10 w-10 place-items-center rounded-full bg-navy-950 text-white transition disabled:bg-slate-300 disabled:text-slate-100">
-              <SendIcon width={20} height={20} />
-            </button>
-          </form>
-          <div className="mt-5 flex flex-wrap justify-center gap-2">
-            {PROMPTS.map((t) => (
-              <button key={t} onClick={() => plan(t)} className="rounded-full border border-slate-200 px-4 py-2 text-sm text-slate-600 transition hover:bg-slate-50">
+          {/* Suggestions float above the box. */}
+          <div className="mb-5 flex flex-wrap justify-center gap-2.5">
+            {PROMPTS.map((t, i) => (
+              <button
+                key={t}
+                onClick={() => plan(t)}
+                style={{ animation: `floaty ${5 + i * 0.7}s ease-in-out ${i * 0.5}s infinite` }}
+                className="float-chip rounded-full bg-white px-4 py-2 text-sm text-slate-600 shadow-sm ring-1 ring-slate-200/80 transition hover:text-navy-950 hover:ring-slate-300"
+              >
                 {t}
               </button>
             ))}
           </div>
-        </div>
-        <div className="mx-auto max-w-7xl px-4 pb-14 sm:px-6">
-          <p className="mb-3 text-center text-sm font-semibold text-slate-400">Or search directly</p>
-          <SearchWidget onSearch={onSearch} onVoice={onVoice} />
+
+          {/* One search: ask in words or by voice, or pick a kind of trip right under the box to reveal the exact fields. */}
+          <div className="w-full rounded-[28px] bg-white p-3 shadow-card ring-1 ring-slate-200/80 sm:p-5">
+            {homeVoice && hearing ? (
+              // Same listening bar as the planner chat: cancel, live level meter, stop.
+              <div className="flex w-full animate-[composerIn_0.2s_ease-out] items-center gap-2 rounded-full bg-slate-100 py-2 pl-2 pr-2 ring-1 ring-slate-200">
+                <button onClick={toggleMic} aria-label="Cancel" className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white text-navy-950 shadow-sm transition hover:bg-slate-50 active:scale-90">
+                  <CloseIcon width={18} height={18} />
+                </button>
+                <Wave />
+                <button onClick={toggleMic} aria-label="Stop listening" className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white text-navy-950 shadow-sm transition hover:bg-slate-50 active:scale-90">
+                  <span className="block h-3.5 w-3.5 rounded-[3px] bg-navy-950" />
+                </button>
+              </div>
+            ) : (
+            <form onSubmit={ask} className="flex w-full items-center gap-2 rounded-full bg-slate-100 py-2 pl-5 pr-2 ring-1 ring-slate-200">
+              {homeVoice ? (
+                <p className="min-w-0 flex-1 truncate text-[15px] text-slate-500" aria-live="polite">
+                  {understanding ? 'Understanding…' : 'Connecting…'}
+                </p>
+              ) : (
+                <input
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  placeholder="Ask the AI planner: flights, buses, hotels, events…"
+                  className="min-w-0 flex-1 bg-transparent text-[15px] text-navy-950 placeholder:text-slate-400 focus:outline-none"
+                />
+              )}
+              {supported && (
+                <button
+                  type="button"
+                  onClick={toggleMic}
+                  title={homeVoice ? 'Stop listening' : 'Speak your request'}
+                  aria-label={homeVoice ? 'Stop listening' : 'Speak your request'}
+                  className="grid h-10 w-10 place-items-center rounded-full text-slate-500 hover:text-navy-950"
+                >
+                  <MicIcon width={20} height={20} />
+                </button>
+              )}
+              <button disabled={!draft.trim() || homeVoice} aria-label="Send" className="grid h-10 w-10 place-items-center rounded-full bg-navy-950 text-white transition disabled:bg-slate-300 disabled:text-slate-100">
+                <SendIcon width={20} height={20} />
+              </button>
+            </form>
+            )}
+
+            <SearchWidget bare collapsible onSearch={onSearch} />
+          </div>
         </div>
       </section>
 

@@ -21,7 +21,11 @@ interface LogEntry {
   live?: boolean;
   /** The search the agent ran for this reply: the chat shows its results as cards. */
   search?: SearchCriteria;
+  /** The cart this reply created or changed: the planner shows its card under this message. */
+  cartId?: string;
 }
+
+const WHERE_AM_I = /\bwhere am i\b|\b(show|find|get) (me )?my (current )?location\b|\bmy (current )?location\b|म कहाँ छु/i;
 
 const STORE_KEY = 'swiftpass-voice-chat-v1';
 
@@ -33,6 +37,34 @@ function loadChat(): { log: LogEntry[]; sessionId: string | null } {
     /* storage unavailable or corrupt — start fresh */
   }
   return { log: [], sessionId: null };
+}
+
+const HISTORY_KEY = 'swiftpass-chat-history-v1';
+const MAX_CHATS = 30;
+
+/** A past conversation shown in the planner's sidebar. Its id is the agent session id. */
+export interface SavedChat {
+  id: string;
+  title: string;
+  updatedAt: number;
+  log: LogEntry[];
+}
+
+function loadHistory(): SavedChat[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+    return Array.isArray(raw) ? raw.filter((c) => c && typeof c.id === 'string' && Array.isArray(c.log)) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveHistory(chats: SavedChat[]) {
+  try {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(chats));
+  } catch {
+    /* storage full or blocked: the sidebar just won't remember */
+  }
 }
 
 /** Map the agent's search onto the form. The backend matches cities case-insensitively. */
@@ -60,6 +92,9 @@ interface VoiceValue {
   cartId: string | null;
   trackId: string | null;
   closeTrack: () => void;
+  /** The traveller's own position map ("where am I"). */
+  showMe: boolean;
+  closeMe: () => void;
   error: string | null;
   supported: boolean;
   start: () => void;
@@ -73,6 +108,11 @@ interface VoiceValue {
   reviewInCheckout: () => void;
   dismissCart: () => void;
   startOver: () => void;
+  /** Past conversations, newest first, and the id of the one on screen. */
+  chats: SavedChat[];
+  activeChatId: string | null;
+  openChat: (id: string) => void;
+  deleteChat: (id: string) => void;
 }
 
 const VoiceContext = createContext<VoiceValue | null>(null);
@@ -134,8 +174,10 @@ export function VoiceProvider({ token, onReviewOffer, children }: ProviderProps)
   const [active, setActive] = useState(false);
   const [phase, setPhase] = useState<VoicePhase>('idle');
   const [log, setLog] = useState<LogEntry[]>(() => loadChat().log);
+  const [chats, setChats] = useState<SavedChat[]>(loadHistory);
   const [cartId, setCartId] = useState<string | null>(null);
   const [trackId, setTrackId] = useState<string | null>(null);
+  const [showMe, setShowMe] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const levelRef = useRef(0);
@@ -179,6 +221,24 @@ export function VoiceProvider({ token, onReviewOffer, children }: ProviderProps)
     }
   }, [log]);
 
+  // Every change to the conversation updates its entry in the history (keyed by the agent session id).
+  useEffect(() => {
+    const id = sessionRef.current;
+    const firstUser = log.find((e) => e.role === 'user');
+    if (!id || !firstUser) return;
+    setChats((all) => {
+      const entry: SavedChat = {
+        id,
+        title: firstUser.text.trim().slice(0, 48) || 'New chat',
+        updatedAt: Date.now(),
+        log: log.slice(-60).map((e) => ({ ...e, live: false })),
+      };
+      const next = [entry, ...all.filter((c) => c.id !== id)].slice(0, MAX_CHATS);
+      saveHistory(next);
+      return next;
+    });
+  }, [log]);
+
   const supported =
     typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia && typeof AudioWorkletNode !== 'undefined' && typeof WebSocket !== 'undefined';
 
@@ -205,6 +265,8 @@ export function VoiceProvider({ token, onReviewOffer, children }: ProviderProps)
     setCartId(null);
     setTrackId(null);
     setLog([]);
+    setChats([]); // another traveller must not see this one's past chats
+    saveHistory([]);
     try {
       sessionStorage.removeItem(STORE_KEY);
     } catch {
@@ -224,6 +286,14 @@ export function VoiceProvider({ token, onReviewOffer, children }: ProviderProps)
 
   /** Shared by spoken and typed input. Returns true if the utterance was handled locally. */
   function handleLocally(text: string): boolean {
+    if (WHERE_AM_I.test(text)) {
+      streamRef.current?.cancel();
+      setShowMe(true);
+      const reply = "Here's where you are. Allow location in your browser if it asks.";
+      setLog((l) => [...l, { role: 'assistant', text: reply, live: true }]);
+      sayLocally(reply);
+      return true;
+    }
     if (cartRef.current && DISMISS_WORDS.test(text)) {
       streamRef.current?.cancel();
       setCartId(null);
@@ -252,7 +322,7 @@ export function VoiceProvider({ token, onReviewOffer, children }: ProviderProps)
             stopSpeaking();
             setPhase('listening');
           },
-          onSpeechEnd: () => setPhase('transcribing'),
+          onSpeechEnd: (dropped) => setPhase(dropped ? 'listening' : 'transcribing'),
           onTranscript: (text) => {
             setLog((l) => [...l, { role: 'user', text }]);
             if (!handleLocally(text)) setPhase('thinking');
@@ -263,7 +333,7 @@ export function VoiceProvider({ token, onReviewOffer, children }: ProviderProps)
             lastReplyRef.current = r.reply;
             if (r.cartId) setCartId(r.cartId);
             if (r.trackOccurrenceId) setTrackId(r.trackOccurrenceId);
-            setLog((l) => [...l, { role: 'assistant', text: r.reply, live: true, search: r.search ? toCriteria(r.search) : undefined }]);
+            setLog((l) => [...l, { role: 'assistant', text: r.reply, live: true, search: r.search ? toCriteria(r.search) : undefined, cartId: r.cartId ?? undefined }]);
           },
           onPlaybackStart: () => setPhase('speaking'),
           onPlaybackEnd: () => setPhase('listening'),
@@ -304,18 +374,20 @@ export function VoiceProvider({ token, onReviewOffer, children }: ProviderProps)
     // Mic muted: no socket, so use the plain HTTP turn and the browser voice.
     let reply: string;
     let search: SearchCriteria | undefined;
+    let turnCart: string | undefined;
     try {
       const r = await postVoiceTurn({ sessionId: sessionRef.current, message: text, token: agentTokenRef.current ?? (await refreshAgentToken()) });
       sessionRef.current = r.sessionId;
       reply = r.reply;
       if (r.cartId) setCartId(r.cartId);
+      turnCart = r.cartId ?? undefined;
       if (r.trackOccurrenceId) setTrackId(r.trackOccurrenceId);
       search = r.search ? toCriteria(r.search) : undefined;
     } catch (err) {
       reply = (err as Error).message || 'Something went wrong talking to the assistant.';
       setError(reply);
     }
-    setLog((l) => [...l, { role: 'assistant', text: reply, live: true, search }]);
+    setLog((l) => [...l, { role: 'assistant', text: reply, live: true, search, cartId: turnCart }]);
     sayLocally(reply);
   }
 
@@ -355,6 +427,8 @@ export function VoiceProvider({ token, onReviewOffer, children }: ProviderProps)
       cartId,
       trackId,
       closeTrack: () => setTrackId(null),
+      showMe,
+      closeMe: () => setShowMe(false),
       error,
       supported,
       start: () => {
@@ -379,6 +453,32 @@ export function VoiceProvider({ token, onReviewOffer, children }: ProviderProps)
       },
       reviewInCheckout: () => void reviewInCheckout(),
       dismissCart: () => setCartId(null),
+      chats,
+      activeChatId: sessionRef.current,
+      openChat: (id) => {
+        const c = chats.find((x) => x.id === id);
+        if (!c) return;
+        halt();
+        sessionRef.current = c.id;
+        setLog(c.log.map((e) => ({ ...e, live: false })));
+        setCartId(null);
+        setTrackId(null);
+        setError(null);
+      },
+      deleteChat: (id) => {
+        setChats((all) => {
+          const next = all.filter((c) => c.id !== id);
+          saveHistory(next);
+          return next;
+        });
+        if (sessionRef.current === id) {
+          halt();
+          sessionRef.current = null;
+          setLog([]);
+          setCartId(null);
+          setTrackId(null);
+        }
+      },
       startOver: () => {
         halt();
         sessionRef.current = null;
@@ -395,7 +495,7 @@ export function VoiceProvider({ token, onReviewOffer, children }: ProviderProps)
     }),
     // handlers close over refs/stable setters only
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [open, active, phase, log, cartId, trackId, error, supported, halt, connect],
+    [open, active, phase, log, cartId, trackId, showMe, error, supported, halt, connect, chats],
   );
 
   return <VoiceContext.Provider value={value}>{children}</VoiceContext.Provider>;

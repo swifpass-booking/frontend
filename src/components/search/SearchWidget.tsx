@@ -8,11 +8,15 @@ interface SearchWidgetProps {
   initial?: Partial<SearchCriteria>;
   onSearch: (criteria: SearchCriteria) => void;
   compact?: boolean;
+  /** No card of its own: it sits inside another card (the home page's combined search). */
+  bare?: boolean;
+  /** Only the mode chips show until one is picked; picking it reveals the fields, picking it again hides them. */
+  collapsible?: boolean;
   /** Mic tapped: the voice assistant lives on the planner page, so hand off there. */
   onVoice?: () => void;
 }
 
-export default function SearchWidget({ initial, onSearch, compact = false, onVoice }: SearchWidgetProps) {
+export default function SearchWidget({ initial, onSearch, compact = false, bare = false, collapsible = false, onVoice }: SearchWidgetProps) {
   const [mode, setMode] = useState<TravelMode>(initial?.mode || 'air');
   const [from, setFrom] = useState(initial?.from || '');
   const [to, setTo] = useState(initial?.to || '');
@@ -32,6 +36,32 @@ export default function SearchWidget({ initial, onSearch, compact = false, onVoi
   }, [mode]);
   // Keep values set by the voice assistant selectable even before/without the city list loading.
   const cities = useMemo(() => [...new Set([...loaded, from, to, city].filter(Boolean))].map((c) => ({ city: c })), [loaded, from, to, city]);
+  const [fieldsOpen, setFieldsOpen] = useState(!collapsible);
+
+  function pickMode(key: TravelMode) {
+    if (collapsible && key === mode && fieldsOpen) return setFieldsOpen(false);
+    setFieldsOpen(true);
+    if (key === mode) return;
+    setMode(key);
+    setFrom('');
+    setTo('');
+    setCity('');
+  }
+
+  function modeChip(key: TravelMode, label: string) {
+    return (
+      <button
+        key={key}
+        type="button"
+        onClick={() => pickMode(key)}
+        className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold transition ${mode === key && fieldsOpen ? 'bg-navy-950 text-white' : collapsible ? 'border border-slate-200 text-navy-700 hover:bg-slate-100' : 'text-navy-700 hover:bg-slate-100'}`}
+      >
+        <ModeIcon mode={key} className="h-4 w-4" width={16} height={16} />
+        {label}
+      </button>
+    );
+  }
+
   const isEvent = isVenueMode(mode);
   const stay = mode === 'hotel' || mode === 'resort';
 
@@ -41,29 +71,12 @@ export default function SearchWidget({ initial, onSearch, compact = false, onVoi
   }
 
   return (
-    <div className={compact ? 'rounded-xl bg-white p-3 shadow-card ring-1 ring-navy-900/5' : 'rounded-2xl bg-white p-4 shadow-popover sm:p-6'}>
-      <div className="flex flex-wrap gap-1.5 border-b border-slate-100 pb-3 mb-4">
-        {MODES.map((m) => (
-          <button
-            key={m.key}
-            type="button"
-            onClick={() => {
-              setMode(m.key);
-              setFrom('');
-              setTo('');
-              setCity('');
-            }}
-            className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold transition ${
-              mode === m.key ? 'bg-navy-950 text-white' : 'text-navy-700 hover:bg-slate-100'
-            }`}
-          >
-            <ModeIcon mode={m.key} className="h-4 w-4" width={16} height={16} />
-            {m.label}
-          </button>
-        ))}
+    <div className={bare ? '' : compact ? 'rounded-xl bg-white p-3 shadow-card ring-1 ring-navy-900/5' : 'rounded-2xl bg-white p-4 shadow-popover sm:p-6'}>
+      <div className={`relative flex flex-wrap items-center gap-1.5 ${collapsible ? `mt-4 justify-center ${fieldsOpen ? 'mb-4 border-b border-slate-100 pb-4' : ''}` : 'mb-4 border-b border-slate-100 pb-3'}`}>
+        {MODES.map((m) => modeChip(m.key, m.label))}
       </div>
 
-      <form onSubmit={submit} className={`grid gap-3 ${isEvent ? 'sm:grid-cols-[1.4fr_1fr_1fr_auto]' : 'sm:grid-cols-[1.2fr_1.2fr_1fr_0.8fr_auto]'}`}>
+      {fieldsOpen && <form onSubmit={submit} className={`grid animate-[composerIn_0.2s_ease-out] gap-3 ${isEvent ? 'sm:grid-cols-[1.4fr_1fr_1fr_auto]' : 'sm:grid-cols-[1.2fr_1.2fr_1fr_0.8fr_auto]'}`}>
         {isEvent ? (
           <Field label={stay ? 'Destination' : 'City / venue'} icon={MapPinIcon}>
             <select value={city} onChange={(e) => setCity(e.target.value)} className="field-input">
@@ -115,7 +128,7 @@ export default function SearchWidget({ initial, onSearch, compact = false, onVoi
         </Field>
 
         <div className="flex items-center gap-2 sm:mt-[22px]">
-          <button
+          {!bare && <button
             type="button"
             onClick={onVoice}
             title="Talk to the booking assistant"
@@ -123,7 +136,7 @@ export default function SearchWidget({ initial, onSearch, compact = false, onVoi
             className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-brand-blue text-white shadow-sm transition hover:bg-blue-700"
           >
             <MicIcon width={20} height={20} />
-          </button>
+          </button>}
           <button
             type="submit"
             className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-brand-blue px-6 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700"
@@ -132,7 +145,7 @@ export default function SearchWidget({ initial, onSearch, compact = false, onVoi
             Search
           </button>
         </div>
-      </form>
+      </form>}
     </div>
   );
 }

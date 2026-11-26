@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { verifyPayment } from '../api/rest';
 import { takePendingCheckout } from '../lib/payment';
+import { useToast } from '../components/ui/Toast';
 import type { BookingDraft } from '../types/domain';
 
 interface PaymentReturnProps {
@@ -14,6 +15,7 @@ interface PaymentReturnProps {
 export default function PaymentReturn({ provider, onConfirmed, onBack, onTickets }: PaymentReturnProps) {
   const [error, setError] = useState<string | null>(null);
   const [paidRef, setPaidRef] = useState<string | null>(null); // paid, but this browser no longer has the trip details
+  const toast = useToast();
   const ran = useRef(false); // StrictMode double-invokes effects; the pending draft can only be taken once
 
   useEffect(() => {
@@ -32,13 +34,17 @@ export default function PaymentReturn({ provider, onConfirmed, onBack, onTickets
     })
       .then((booking) => {
         window.history.replaceState({}, '', '/');
+        toast('success', 'Payment successful', `Booking ${booking.reference} is confirmed. Your tickets are ready.`);
         if (!draft) {
           setPaidRef(booking.reference);
           return;
         }
         onConfirmed({ ...draft, ...booking });
       })
-      .catch((e: Error) => setError(e.message || 'Could not confirm the payment.'));
+      .catch((e: Error) => {
+        setError(e.message || 'Could not confirm the payment.');
+        toast('error', 'Payment not completed', e.message || 'Could not confirm the payment.');
+      });
   }, [provider, onConfirmed]);
 
   if (paidRef) {

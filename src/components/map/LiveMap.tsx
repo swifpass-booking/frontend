@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { getTracking, type Tracking } from '../../api/rest';
+import { locate } from './MyLocation';
 
 const POLL_MS = 5000;
 
@@ -48,6 +49,24 @@ export default function LiveMap({ occurrenceId, height = 320, onClose }: LiveMap
   const fitted = useRef(false);
   const [data, setData] = useState<Tracking | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [meNote, setMeNote] = useState('');
+  const meMarker = useRef<L.Marker | null>(null);
+
+  /** Drops a "you" dot on this map and widens the view to hold both you and the vehicle. */
+  function showMe() {
+    setMeNote('Finding you…');
+    locate(
+      (p) => {
+        const m = map.current;
+        if (!m) return;
+        meMarker.current?.remove();
+        meMarker.current = L.marker(p, { icon: dot('#7c3aed', 16) }).addTo(m).bindTooltip('You', { permanent: true, direction: 'top', offset: [0, -8] });
+        m.fitBounds(L.latLngBounds([p, ...(data ? [[data.position.lat, data.position.lng] as L.LatLngTuple] : [])]).pad(0.3), { maxZoom: 14 });
+        setMeNote('');
+      },
+      setMeNote,
+    );
+  }
 
   useEffect(() => {
     if (!el.current) return;
@@ -120,6 +139,9 @@ export default function LiveMap({ occurrenceId, height = 320, onClose }: LiveMap
             {data ? `${STATUS_LABEL[data.status]} · ${Math.round(data.progress * 100)}% of ${data.totalKm} km${data.routeSource === 'road' ? ' by road' : ''}` : error ?? 'Locating…'}
           </p>
         </div>
+        <button onClick={showMe} className="shrink-0 rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-navy-950 hover:bg-slate-50">
+          Show me
+        </button>
         {onClose && (
           <button onClick={onClose} className="rounded-full px-2 py-1 text-xs font-semibold text-slate-500 hover:bg-slate-100" aria-label="Close map">
             Close
@@ -127,6 +149,7 @@ export default function LiveMap({ occurrenceId, height = 320, onClose }: LiveMap
         )}
       </div>
 
+      {meNote && <p className="px-4 pb-2 text-xs font-semibold text-amber-700">{meNote}</p>}
       <div ref={el} style={{ height }} className="relative z-0 w-full bg-slate-100" />
 
       {data && (
