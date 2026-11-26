@@ -1,43 +1,25 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
-import { request } from '../api/rest';
+import { request, SESSION_TOKEN } from '../api/rest';
 import type { AuthContextValue, AuthSession, AuthUser } from '../types/auth';
 
 const AuthContext = createContext<AuthContextValue | null>(null);
-const STORAGE_KEY = 'swiftpass.auth';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<AuthSession | null>(null);
   const [ready, setReady] = useState(false);
 
+  // The session is an httpOnly cookie, so ask the server who we are. Only a rejected session ends it;
+  // a network blip or a 5xx must not sign anyone out.
   useEffect(() => {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      setReady(true);
-      return;
-    }
-    try {
-      const { token, user } = JSON.parse(raw) as AuthSession;
-      request<{ user: AuthUser }>('/auth/me', { token })
-        .then((json) => setSession({ token, user: json.user }))
-        .catch((err: Error & { status?: number }) => {
-          // Only a rejected token ends the session; a network blip or a 5xx must not sign anyone out.
-          if (err.status === 401) {
-            localStorage.removeItem(STORAGE_KEY);
-            setSession(null);
-          }
-        })
-        .finally(() => setReady(true));
-      setSession({ token, user });
-    } catch {
-      localStorage.removeItem(STORAGE_KEY);
-      setReady(true);
-    }
+    request<{ user: AuthUser }>('/auth/me')
+      .then((json) => setSession({ token: SESSION_TOKEN, user: json.user }))
+      .catch((err: Error & { status?: number }) => {
+        if (err.status === 401) setSession(null);
+      })
+      .finally(() => setReady(true));
   }, []);
 
-  const persist = (data: AuthSession) => {
-    setSession(data);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  };
+  const persist = (data: AuthSession) => setSession({ token: SESSION_TOKEN, user: data.user });
 
   const login = useCallback(async (identifier: string, password: string): Promise<AuthUser> => {
     const data = await request<AuthSession>('/auth/login', { method: 'POST', body: { identifier, password } });
@@ -55,13 +37,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const logout = useCallback(() => {
-    // Revoke server-side too, so a copied token stops working.
-    if (session) {
-      request('/auth/logout', { method: 'POST', token: session.token }).catch(() => {});
-    }
-    localStorage.removeItem(STORAGE_KEY);
+    // Revokes every token server-side and clears the cookie.
+    request('/auth/logout', { method: 'POST' }).catch(() => {});
     setSession(null);
-  }, [session]);
+  }, []);
 
   const value: AuthContextValue = {
     user: session?.user ?? null,

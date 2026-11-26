@@ -14,15 +14,20 @@ interface RequestOptions {
   headers?: Record<string, string>;
 }
 
+/** The web app's session lives in an httpOnly cookie that scripts cannot read. This placeholder only says "signed in". */
+export const SESSION_TOKEN = 'cookie-session';
+
 export async function request<T>(path: string, { method = 'GET', body, token, guestKey, headers: extra }: RequestOptions = {}): Promise<T> {
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (body !== undefined) headers['Content-Type'] = 'application/json';
-  if (token) headers['Authorization'] = `Bearer ${token}`;
+  if (token && token !== SESSION_TOKEN) headers['Authorization'] = `Bearer ${token}`;
+  headers['X-Requested-With'] = 'swiftpass'; // the backend only honours the cookie on writes that carry this header
   if (guestKey) headers['X-Guest-Key'] = guestKey;
   Object.assign(headers, extra);
 
   const res = await fetch(`/v1${path}`, {
     method,
+    credentials: 'same-origin',
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
