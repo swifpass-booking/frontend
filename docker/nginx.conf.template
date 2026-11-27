@@ -20,7 +20,7 @@ server {
         proxy_read_timeout 60s;
     }
 
-    # The agent's routes have no /agent prefix of their own (same as vite.config.ts).
+    # The agent's routes have no /agent prefix of their own (same as next.config.ts in dev).
     # Only the voice socket may sit idle for long; ordinary requests give up after 75s.
     location /agent/ws/ {
         proxy_pass ${AGENT_UPSTREAM}/ws/;
@@ -48,7 +48,8 @@ server {
         proxy_read_timeout 150s;
     }
 
-    location /assets/ {
+    # Next's hashed build output never changes under the same name.
+    location /_next/static/ {
         expires 1y;
         add_header Cache-Control "public, immutable";
         include /etc/nginx/snippets/security-headers.conf;  # add_header in a location drops the server-level ones
@@ -65,8 +66,8 @@ server {
         include /etc/nginx/snippets/security-headers.conf;
     }
 
-    # Client-side routes (/ops, /admin, /payment/return, ...) all load the SPA.
+    # Static export: /tickets is tickets.html, /payment/stripe/sim is payment/stripe/sim.html.
     location / {
-        try_files $uri /index.html;
+        try_files $uri $uri.html $uri/ /index.html;
     }
 }
