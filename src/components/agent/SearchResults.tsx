@@ -1,7 +1,11 @@
-import { useEffect, useState } from 'react';
-import { searchOffersApi } from '../../api/rest';
-import OfferCard from '../results/OfferCard';
-import type { Offer, SearchCriteria, SeatPick } from '../../types/domain';
+'use client';
+
+import { useState } from 'react';
+import OfferCard from '@/components/results/OfferCard';
+import { InlineMessage } from '@/components/shared/InlineMessage';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useOffers } from '@/hooks/useOffers';
+import type { Offer, SearchCriteria, SeatPick } from '@/types/domain';
 
 interface SearchResultsProps {
   criteria: SearchCriteria;
@@ -10,26 +14,12 @@ interface SearchResultsProps {
 
 /** What the agent just searched for, as the same offer cards (with the seat picker) as the results page. */
 export default function SearchResults({ criteria, onPick }: SearchResultsProps) {
-  const [offers, setOffers] = useState<Offer[] | null>(null);
+  const { offers: all, loading } = useOffers(criteria);
   const [problem, setProblem] = useState('');
-  const key = JSON.stringify(criteria);
 
-  useEffect(() => {
-    let cancelled = false;
-    setOffers(null);
-    searchOffersApi(criteria)
-      .then((o) => {
-        if (cancelled) return;
-        const ids = criteria.offerIds;
-        const named = ids ? ids.map((id) => o.find((x) => x.offerId === id)).filter((x): x is Offer => !!x) : [];
-        setOffers((named.length ? named : o).slice(0, 3));
-      })
-      .catch(() => !cancelled && setOffers([]));
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key]);
+  const ids = criteria.offerIds;
+  const named = ids ? ids.map((id) => all.find((x) => x.offerId === id)).filter((x): x is Offer => !!x) : [];
+  const offers = (named.length ? named : all).slice(0, 3);
 
   async function pick(offer: Offer, qty?: number, seats: SeatPick[] = []) {
     setProblem('');
@@ -40,14 +30,12 @@ export default function SearchResults({ criteria, onPick }: SearchResultsProps) 
     }
   }
 
-  if (offers === null) return <div className="h-24 animate-pulse rounded-2xl bg-slate-100" />;
+  if (loading) return <Skeleton className="h-24" />;
   if (!offers.length) return null;
   return (
     <div className="space-y-3">
-      {offers.map((o) => (
-        <OfferCard key={o.offerId} offer={o} passengers={criteria.passengers || 1} onSelect={pick} />
-      ))}
-      {problem && <p className="text-sm font-semibold text-red-600">{problem}</p>}
+      {offers.map((o) => <OfferCard key={o.offerId} offer={o} passengers={criteria.passengers || 1} onSelect={pick} />)}
+      {problem && <InlineMessage tone="error">{problem}</InlineMessage>}
     </div>
   );
 }

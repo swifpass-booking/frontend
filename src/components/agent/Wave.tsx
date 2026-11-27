@@ -1,5 +1,7 @@
+'use client';
+
 import { useEffect, useRef } from 'react';
-import { useVoice } from '../../context/VoiceContext';
+import { useVoice } from '@/context/VoiceContext';
 
 const BARS = 64;
 

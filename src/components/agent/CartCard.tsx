@@ -1,17 +1,26 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { createBooking, getCart, heldSeats, toOffer, type RawCart } from '../../api/rest';
-import { useAuth } from '../../context/AuthContext';
-import { formatDate, formatMoney, formatTime } from '../../lib/format';
-import { isInternationalFlight } from '../../lib/passport';
-import { redirectToGateway, savePendingCheckout } from '../../lib/payment';
-import { ModeIcon } from '../icons';
-import type { PaymentMethod } from '../../types/domain';
+'use client';
 
-const METHODS: { key: PaymentMethod; label: string }[] = [
-  { key: 'esewa', label: 'eSewa' },
-  { key: 'khalti', label: 'Khalti' },
-  { key: 'fonepay', label: 'FonePay' },
-];
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { getCart, heldSeats, toOffer } from '@/api/rest';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
+import { InlineMessage } from '@/components/shared/InlineMessage';
+import { TripSummary } from '@/components/shared/TripSummary';
+import { AgreeCheckbox } from '@/components/shared/AgreeCheckbox';
+import { Spinner } from '@/components/shared/Spinner';
+import { useSignIn } from '@/components/auth/AuthDialog';
+import { useAuth } from '@/context/AuthContext';
+import { useAsync } from '@/hooks/useAsync';
+import { useTravellerForm } from '@/hooks/useTravellerForm';
+import { startPayment } from '@/lib/checkout';
+import { GATEWAY_METHODS, PAYMENT_LABEL } from '@/lib/payment-methods';
+import { isInternationalFlight } from '@/lib/passport';
+import type { PaymentMethod } from '@/types/domain';
+
+const CHAT_METHODS = GATEWAY_METHODS.filter((m) => m !== 'stripe');
 
 interface CartCardProps {
   cartId: string;
@@ -20,40 +29,11 @@ interface CartCardProps {
   /** Open the full checkout page with this cart. */
   onReview: () => void;
   onDismiss: () => void;
-  /** Payment is the only step that needs an account. */
-  onSignIn: () => void;
 }
 
-/** The held trip inside the chat: what is held, the seats, and pay buttons that go straight to the gateway. */
-export default function CartCard({ cartId, guestKey, onReview, onDismiss, onSignIn }: CartCardProps) {
-  const { user, token } = useAuth();
-  const [cart, setCart] = useState<RawCart | null>(null);
-  const [problem, setProblem] = useState('');
-  const [names, setNames] = useState<string[]>([]);
-  const [phone, setPhone] = useState(user?.phoneE164 || '');
-  const [email, setEmail] = useState(user?.email || '');
-  const [agreed, setAgreed] = useState(false);
-  const [paying, setPaying] = useState<PaymentMethod | null>(null);
-  const [formOpen, setFormOpen] = useState(false); // the pay-here form stays folded away until asked for
+/** Seconds left on the hold, ticking once a second until it reaches zero. */
+function useCountdown(expiresAt: number) {
   const [now, setNow] = useState(Date.now());
-  const idempotencyKey = useRef(crypto.randomUUID());
-
-  useEffect(() => {
-    let cancelled = false;
-    getCart(cartId, token, guestKey)
-      .then((c) => {
-        if (cancelled) return;
-        setCart(c);
-        setNames(Array.from({ length: c.items[0]?.qty ?? 1 }, (_, i) => (i === 0 ? user?.fullName || '' : '')));
-      })
-      .catch((e: Error) => !cancelled && setProblem(e.message));
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cartId]);
-
-  const expiresAt = cart ? new Date(cart.expiresAt).getTime() : 0;
   useEffect(() => {
     if (!expiresAt) return;
     const t = setInterval(() => {
@@ -62,32 +42,39 @@ export default function CartCard({ cartId, guestKey, onReview, onDismiss, onSign
     }, 1000);
     return () => clearInterval(t);
   }, [expiresAt]);
+  return expiresAt ? Math.max(0, Math.floor((expiresAt - now) / 1000)) : 0;
+}
 
+/** The held trip inside the chat: what is held, the seats, and pay buttons that go straight to the gateway. */
+export default function CartCard({ cartId, guestKey, onReview, onDismiss }: CartCardProps) {
+  const { user, token } = useAuth();
+  const signIn = useSignIn();
+  const { data: cart, error } = useAsync(() => getCart(cartId, token, guestKey), [cartId]);
   const item = cart?.items[0];
   const offer = useMemo(() => (item ? toOffer(item.offer) : null), [item]);
-  const international = isInternationalFlight(offer);
-  const left = cart ? Math.max(0, Math.floor((expiresAt - now) / 1000)) : 0;
-  const valid = names.every((n) => n.trim().length > 1) && /^\+?\d{7,15}$/.test(phone) && agreed && left > 0;
+  const form = useTravellerForm(item?.qty ?? 1, user);
+  const left = useCountdown(cart ? new Date(cart.expiresAt).getTime() : 0);
+  const [formOpen, setFormOpen] = useState(false); // the pay-here form stays folded away until asked for
+  const [paying, setPaying] = useState<PaymentMethod | null>(null);
+  const [problem, setProblem] = useState('');
+  const idempotencyKey = useRef(crypto.randomUUID());
 
   async function pay(method: PaymentMethod) {
-    if (!item || !offer || !valid) return;
+    if (!item || !offer || !form.valid || left <= 0) return;
     if (!token) {
       setProblem('Sign in to pay. Your seats stay held.');
-      return onSignIn();
+      return signIn();
     }
     setProblem('');
     setPaying(method);
     try {
       const seats = await heldSeats(item);
-      const total = item.lineTotal;
-      const booking = await createBooking(
-        { offer, names, phone, email, payment: method, total, seats: seats?.map((s) => s.label), zoneId: seats ? undefined : item.zoneId || undefined },
+      await startPayment(
+        { offer, passengers: item.qty, seats: seats ?? [], names: form.names, phone: form.phone, email: form.email, payment: method, total: item.lineTotal },
+        { seats: seats?.map((s) => s.label), zoneId: seats ? undefined : item.zoneId || undefined },
         token,
         idempotencyKey.current,
       );
-      if (!booking.gateway) throw new Error('This payment method is not available here. Use the full checkout.');
-      savePendingCheckout({ offer, passengers: item.qty, seats: seats ?? [], zone: undefined, names, phone, email, payment: method, total, reference: booking.reference });
-      redirectToGateway(booking.gateway);
     } catch (err) {
       const e = err as Error & { status?: number };
       setProblem(e.status === 409 ? 'The price changed. Open the full checkout to review it.' : e.message || 'Could not start the payment.');
@@ -95,105 +82,58 @@ export default function CartCard({ cartId, guestKey, onReview, onDismiss, onSign
     }
   }
 
-  if (!cart && !problem) return <div className="h-24 animate-pulse rounded-2xl bg-slate-100" />;
-  if (!cart || !item || !offer) {
-    return <p className="rounded-2xl bg-slate-100 p-3 text-sm text-slate-600">{problem || "That trip isn't held anymore. Ask me to search again."}</p>;
-  }
-
-  const route = offer.venue ? offer.venue.city : [offer.origin?.city, offer.destination?.city].filter(Boolean).join(' → ');
-  const input = 'w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-navy-950 placeholder:text-slate-400 focus:border-brand-blue focus:outline-none';
+  if (!cart && !error) return <Skeleton className="h-24" />;
+  if (!cart || !item || !offer) return <InlineMessage>{error || "That trip isn't held anymore. Ask me to search again."}</InlineMessage>;
 
   return (
-    <div className="animate-[composerIn_0.25s_ease-out] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-card">
-      <div className="flex items-start gap-3 p-4">
-        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-navy-950/5 text-navy-800">
-          <ModeIcon mode={offer.mode} className="h-5 w-5" width={20} height={20} />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-bold uppercase tracking-wide text-brand-blue">{offer.provider.displayName}</p>
-          <p className="truncate text-[15px] font-bold text-navy-950">{offer.title}</p>
-          <p className="text-sm text-slate-500">
-            {route} · {formatDate(offer.departsAt)} {formatTime(offer.departsAt)}
-          </p>
-          {item.seatLabels.length > 0 && (
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {item.seatLabels.map((l) => (
-                <span key={l} className="rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-700 ring-1 ring-emerald-200">
-                  {l}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-        <div className="text-right">
-          <p className="text-lg font-extrabold text-navy-950">{formatMoney(item.lineTotal)}</p>
-          <p className="text-xs text-slate-400">
-            {item.qty} × · fees incl.
-          </p>
-        </div>
-      </div>
+    <Card className="animate-[composerIn_0.25s_ease-out]">
+      <TripSummary offer={offer} price={item.lineTotal} priceNote={`${item.qty} × · fees incl.`} className="p-4">
+        {item.seatLabels.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {item.seatLabels.map((l) => <Badge key={l} variant="success" className="rounded-md">{l}</Badge>)}
+          </div>
+        )}
+      </TripSummary>
 
       <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50 px-4 py-2 text-xs">
         <span className={left > 0 && left < 120 ? 'font-semibold text-red-600' : 'text-slate-500'}>
           {left > 0 ? `Held for ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}` : 'Hold expired. Ask me to search again.'}
         </span>
-        <button onClick={onDismiss} className="font-semibold text-slate-500 hover:text-navy-950">
-          Dismiss
-        </button>
+        <Button variant="ghost" size="sm" onClick={onDismiss} className="h-auto p-0 text-xs hover:bg-transparent">Dismiss</Button>
       </div>
 
       {left > 0 && (
         <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 p-4">
-          <button onClick={onReview} className="rounded-full bg-navy-950 px-5 py-2 text-sm font-bold text-white transition hover:bg-navy-800 active:scale-95">
-            Review &amp; pay
-          </button>
-          <button onClick={() => setFormOpen((v) => !v)} aria-expanded={formOpen} className="text-sm font-semibold text-brand-blue hover:underline">
-            {formOpen ? 'Hide details form' : 'Fill in details here'}
-          </button>
+          <Button onClick={onReview}>Review &amp; pay</Button>
+          <Button variant="link" size="sm" onClick={() => setFormOpen((v) => !v)} aria-expanded={formOpen}>{formOpen ? 'Hide details form' : 'Fill in details here'}</Button>
         </div>
       )}
 
       {left > 0 && formOpen && (
         <div className="space-y-3 border-t border-slate-100 p-4">
-          {international ? (
+          {isInternationalFlight(offer) ? (
             <p className="text-sm text-slate-600">International flights need passport details, so finish this one in the full checkout.</p>
           ) : (
             <>
               <div className="grid gap-2 sm:grid-cols-2">
-                {names.map((n, i) => (
-                  <input
-                    key={i}
-                    value={n}
-                    onChange={(e) => setNames((p) => p.map((x, j) => (j === i ? e.target.value : x)))}
-                    placeholder={names.length > 1 ? `Traveller ${i + 1} full name` : 'Full name'}
-                    className={input}
-                  />
-                ))}
-                <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone, e.g. +9779800000000" inputMode="tel" className={input} />
-                <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email (optional)" type="email" className={input} />
+                {form.names.map((n, i) => <Input key={i} value={n} onChange={(e) => form.setName(i, e.target.value)} placeholder={form.names.length > 1 ? `Traveller ${i + 1} full name` : 'Full name'} />)}
+                <Input value={form.phone} onChange={(e) => form.setPhone(e.target.value)} placeholder="Phone, e.g. +9779800000000" inputMode="tel" />
+                <Input value={form.email} onChange={(e) => form.setEmail(e.target.value)} placeholder="Email (optional)" type="email" />
               </div>
-              <label className="flex items-start gap-2 text-xs text-slate-500">
-                <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="mt-0.5" />
-                I agree to the fare rules and terms. My seat is not confirmed until payment succeeds.
-              </label>
+              <AgreeCheckbox checked={form.agreed} onChange={form.setAgreed} className="text-xs text-slate-500" />
               <div className="flex flex-wrap gap-2">
-                {METHODS.map((m) => (
-                  <button
-                    key={m.key}
-                    onClick={() => pay(m.key)}
-                    disabled={!valid || paying !== null}
-                    className="flex items-center gap-2 rounded-full bg-navy-950 px-5 py-2 text-sm font-bold text-white transition active:scale-95 hover:bg-navy-800 disabled:bg-slate-300 disabled:text-slate-100"
-                  >
-                    {paying === m.key && <span className="voice-spin block h-3.5 w-3.5 rounded-full border-2 border-white/40 border-t-white" />}
-                    Pay with {m.label}
-                  </button>
+                {CHAT_METHODS.map((m) => (
+                  <Button key={m} onClick={() => pay(m)} disabled={!form.valid || paying !== null}>
+                    {paying === m && <Spinner />}
+                    Pay with {PAYMENT_LABEL[m]}
+                  </Button>
                 ))}
               </div>
             </>
           )}
-          {problem && <p className="text-sm font-semibold text-red-600">{problem}</p>}
+          {problem && <InlineMessage tone="error">{problem}</InlineMessage>}
         </div>
       )}
-    </div>
+    </Card>
   );
 }
