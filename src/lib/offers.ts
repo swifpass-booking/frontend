@@ -1,4 +1,4 @@
-import type { TravelMode } from '../types/domain';
+import type { TravelMode } from '@/types/domain';
 
 export const MODES: { key: TravelMode; label: string }[] = [
   { key: 'air', label: 'Flights' },
@@ -23,3 +23,16 @@ export const MODE_LABEL: Record<TravelMode, string> = {
 /** Modes booked at a single place ("city") rather than between two places. */
 export const isVenueMode = (mode: TravelMode) => mode !== 'air' && mode !== 'bus' && mode !== 'rail';
 
+
+/** Singular label for one offer ("Flight", "Bus"). */
+export const MODE_NOUN: Record<TravelMode, string> = {
+  air: 'Flight',
+  bus: 'Bus',
+  rail: 'Train',
+  event: 'Event',
+  hotel: 'Hotel',
+  resort: 'Resort',
+  hall: 'Event hall',
+};
+
+export const isStayMode = (mode: TravelMode) => mode === 'hotel' || mode === 'resort' || mode === 'hall';

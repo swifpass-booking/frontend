@@ -1,9 +1,9 @@
 /** Thin fetch wrapper for the real (non-mock) Django backend: auth, bookings, admin, carts.
  *  The voice concierge is a separate service — see api/voiceAgent.ts. */
-import type { AdminBookingRow, AdminOccurrenceRow, AdminStats, AdminUserRow } from '../types/admin';
-import type { BookingDraft, Money, Offer, PassportDetails, PaymentMethod, Place, SearchCriteria, SeatMap, SeatPick, Ticket, Zone } from '../types/domain';
+import type { AdminBookingRow, AdminOccurrenceRow, AdminStats, AdminUserRow } from '@/types/admin';
+import type { BookingDraft, Money, Offer, PassportDetails, PaymentMethod, Place, SearchCriteria, SeatMap, SeatPick, Ticket, Zone } from '@/types/domain';
 import { isVenueMode } from '../lib/offers';
-import type { ScanCounts, ScanEvent, ScanVerdict } from '../types/gate';
+import type { ScanCounts, ScanEvent, ScanVerdict } from '@/types/gate';
 
 interface RequestOptions {
   method?: string;
@@ -38,7 +38,7 @@ export async function request<T>(path: string, { method = 'GET', body, token, gu
   return json as T;
 }
 
-interface CreateBookingPayload {
+export interface CreateBookingPayload {
   offer: BookingDraft['offer'];
   names: string[];
   /** One per traveller, required by the backend for international flights. */

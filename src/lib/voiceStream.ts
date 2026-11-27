@@ -276,7 +276,7 @@ export async function openVoiceStream(opts: StreamOptions, h: StreamHandlers): P
   let speechStart = 0;
   let voicedMs = 0;
 
-  const send = (pcm: Int16Array) => ws.readyState === WebSocket.OPEN && ws.send(pcm.buffer.slice(pcm.byteOffset, pcm.byteOffset + pcm.byteLength));
+  const send = (pcm: Int16Array) => ws.readyState === WebSocket.OPEN && ws.send(pcm.slice().buffer as ArrayBuffer);
 
   node.port.onmessage = (ev: MessageEvent<Float32Array>) => {
     if (closed) return;
