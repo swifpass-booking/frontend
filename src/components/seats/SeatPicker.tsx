@@ -1,7 +1,9 @@
+'use client';
+
 import { useEffect, useMemo, useState } from 'react';
-import { getSeatMap } from '../../api/rest';
-import { formatMoney } from '../../lib/format';
-import type { Offer, Seat, SeatMap, SeatPick, SeatSection } from '../../types/domain';
+import { getSeatMap } from '@/api/rest';
+import { formatMoney } from '@/lib/format';
+import type { Offer, Seat, SeatMap, SeatPick, SeatSection } from '@/types/domain';
 
 interface SeatPickerProps {
   offer: Offer;

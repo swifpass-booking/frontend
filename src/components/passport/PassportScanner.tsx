@@ -1,6 +1,8 @@
+'use client';
+
 import { useEffect, useRef, useState } from 'react';
 import { createWorker, PSM, type Worker } from 'tesseract.js';
-import { parsePassportText, type ScanResult } from '../lib/passport';
+import { parsePassportText, type ScanResult } from '@/lib/passport';
 
 interface PassportScannerProps {
   onResult: (result: ScanResult) => void;
