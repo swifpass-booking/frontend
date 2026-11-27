@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * Hands-free voice conversation with the booking agent, ChatGPT-voice style:
  *   one open websocket (lib/voiceStream.ts); the mic never closes between turns, and talking

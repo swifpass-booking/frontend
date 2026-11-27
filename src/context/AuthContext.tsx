@@ -1,3 +1,5 @@
+'use client';
+
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { request, SESSION_TOKEN } from '../api/rest';
 import type { AuthContextValue, AuthSession, AuthUser } from '../types/auth';
