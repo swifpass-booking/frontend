@@ -1,6 +1,9 @@
+'use client';
+
+import type { ReactElement } from 'react';
 // Small inline SVG icon set — no external icon package needed.
 import type { SVGProps } from 'react';
-import type { TravelMode } from '../../types/domain';
+import type { TravelMode } from '@/types/domain';
 
 type IconProps = SVGProps<SVGSVGElement>;
 
@@ -157,7 +160,7 @@ function BuildingIcon(props: IconProps) {
   );
 }
 
-const MODE_ICONS: Record<TravelMode, (props: IconProps) => JSX.Element> = {
+const MODE_ICONS: Record<TravelMode, (props: IconProps) => ReactElement> = {
   air: PlaneIcon,
   bus: BusIcon,
   rail: TrainIcon,
