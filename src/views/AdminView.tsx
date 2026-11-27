@@ -1,12 +1,14 @@
-import { useEffect, useState, type ReactNode, type SVGProps } from 'react';
-import { adminBookings, adminOccurrences, adminRefund, adminStats, adminUsers } from '../api/rest';
-import { formatMoney, formatDate, formatTime } from '../lib/format';
-import { ModeIcon, UsersIcon, TicketIcon, CalendarIcon, ClockIcon, MapPinIcon } from '../components/icons';
-import LiveMap from '../components/map/LiveMap';
-import { MODE_LABEL } from '../lib/offers';
-import type { AuthUser } from '../types/auth';
-import type { AdminBookingRow, AdminDashboardData, AdminOccurrenceRow, AdminUserRow } from '../types/admin';
-import type { TravelMode } from '../types/domain';
+'use client';
+
+import { useEffect, useState, type ReactNode, type SVGProps, type ReactElement } from 'react';
+import { adminBookings, adminOccurrences, adminRefund, adminStats, adminUsers } from '@/api/rest';
+import { formatMoney, formatDate, formatTime } from '@/lib/format';
+import { ModeIcon, UsersIcon, TicketIcon, CalendarIcon, ClockIcon, MapPinIcon } from '@/components/icons';
+import LiveMap from '@/components/map/LiveMap';
+import { MODE_LABEL } from '@/lib/offers';
+import type { AuthUser } from '@/types/auth';
+import type { AdminBookingRow, AdminDashboardData, AdminOccurrenceRow, AdminUserRow } from '@/types/admin';
+import type { TravelMode } from '@/types/domain';
 
 
 const OCCURRENCE_STATUS_STYLE: Record<string, string> = {
@@ -25,7 +27,7 @@ const BOOKING_STATUS_STYLE: Record<string, string> = {
 const PAYMENT_METHOD_LABEL: Record<string, string> = { esewa: 'eSewa', khalti: 'Khalti', fonepay: 'FonePay', stripe: 'Stripe', card: 'Card' };
 
 interface StatTileProps {
-  icon: (props: SVGProps<SVGSVGElement>) => JSX.Element;
+  icon: (props: SVGProps<SVGSVGElement>) => ReactElement;
   label: string;
   value: string | number;
   sub?: string;
@@ -272,7 +274,7 @@ function UsersTable({ rows }: { rows: AdminUserRow[] }) {
 
 type Section = 'overview' | 'bookings' | 'trips' | 'users' | 'fleet' | 'storefront' | 'scanner';
 
-const SECTIONS: { key: Section; label: string; icon: (props: SVGProps<SVGSVGElement>) => JSX.Element }[] = [
+const SECTIONS: { key: Section; label: string; icon: (props: SVGProps<SVGSVGElement>) => ReactElement }[] = [
   { key: 'overview', label: 'Overview', icon: ClockIcon },
   { key: 'bookings', label: 'Bookings', icon: TicketIcon },
   { key: 'trips', label: 'Trips & events', icon: CalendarIcon },

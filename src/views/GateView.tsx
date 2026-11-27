@@ -1,10 +1,12 @@
+'use client';
+
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import jsQR from 'jsqr';
-import { scanHistory, scanOccurrences, scanRedeem, scanStats } from '../api/rest';
-import { ModeIcon } from '../components/icons';
-import type { AuthUser } from '../types/auth';
-import type { AdminOccurrenceRow } from '../types/admin';
-import type { RejectReason, ScanCounts, ScanEvent, ScanVerdict } from '../types/gate';
+import { scanHistory, scanOccurrences, scanRedeem, scanStats } from '@/api/rest';
+import { ModeIcon } from '@/components/icons';
+import type { AuthUser } from '@/types/auth';
+import type { AdminOccurrenceRow } from '@/types/admin';
+import type { RejectReason, ScanCounts, ScanEvent, ScanVerdict } from '@/types/gate';
 
 /**
  * Swiftpass — Gate Board (operator console)
